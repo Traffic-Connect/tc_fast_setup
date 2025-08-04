@@ -435,31 +435,7 @@ test_interactive_mode() {
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
-# ============================================================================
-# ТЕСТЫ ВЕБ-ИНТЕРФЕЙСА
-# ============================================================================
 
-test_web_interface() {
-    echo ""
-    echo "=== ТЕСТЫ ВЕБ-ИНТЕРФЕЙСА ==="
-    
-    # Проверка структуры веб-интерфейса
-    assert_true "[ -d '$PROJECT_ROOT/web' ]" "Директория веб-интерфейса существует"
-    assert_true "[ -f '$PROJECT_ROOT/web/index.html' ]" "Главная страница существует"
-    assert_true "[ -f '$PROJECT_ROOT/web/start_gui.sh' ]" "Скрипт запуска GUI существует"
-    
-    # Проверка поддиректорий
-    local web_dirs=("css" "js" "api" "assets")
-    for dir in "${web_dirs[@]}"; do
-        if [ -d "$PROJECT_ROOT/web/$dir" ]; then
-            echo -e "${GREEN}✅ Веб-директория $dir существует${NC}"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
-        else
-            echo -e "${YELLOW}⚠ Веб-директория $dir отсутствует${NC}"
-        fi
-        TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    done
-}
 
 # ============================================================================
 # ТЕСТЫ ДОПОЛНИТЕЛЬНЫХ КОМПОНЕНТОВ
@@ -522,7 +498,6 @@ run_all_integration_tests() {
     test_error_handling
     test_performance_features
     test_interactive_mode
-    test_web_interface
     test_additional_components
     
     # Показ результатов

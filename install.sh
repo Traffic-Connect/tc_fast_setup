@@ -173,15 +173,7 @@ case "${1:-}" in
         setup_logging
         interactive_configuration
         ;;
-    --gui)
-        log_info "Запуск веб-интерфейса..."
-        if [ -f "$SCRIPT_DIR/web/start_gui.sh" ]; then
-            bash "$SCRIPT_DIR/web/start_gui.sh"
-        else
-            log_err "GUI скрипт не найден"
-            exit 1
-        fi
-        ;;
+
     --validate)
         log_info "Валидация конфигурации..."
         check_root
