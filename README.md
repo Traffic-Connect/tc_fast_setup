@@ -2,7 +2,7 @@
 
 **Комплексный установщик для сервера с HestiaCP, системой мониторинга и дополнительными компонентами**
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Traffic-Connect/tc_fast_setup)
+[![Version](https://img.shields.io/badge/version-2.0.2-blue.svg)](https://github.com/Traffic-Connect/tc_fast_setup)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/shell-Bash-orange.svg)](https://www.gnu.org/software/bash/)
 [![OS](https://img.shields.io/badge/OS-Ubuntu%2020.04%2B%20%7C%20Debian%2011%2B-lightgrey.svg)](https://ubuntu.com/)
@@ -374,7 +374,26 @@ tc_fast_setup/
 
 ## 📝 Changelog
 
-### 🆕 Версия 2.0.0 (Текущая)
+### 🆕 Версия 2.0.2 (Текущая)
+**Дата:** 4 августа 2024
+
+#### 🗑️ Очистка кодовой базы
+- ✅ Полное удаление веб-интерфейса и GUI компонентов
+- ✅ Очистка install.sh от опций --gui
+- ✅ Удаление тестов веб-интерфейса из integration тестов
+- ✅ Обновление документации (убраны разделы о GUI)
+- ✅ Оптимизация структуры проекта
+
+### 📦 Версия 2.0.1
+**Дата:** 4 августа 2024
+
+#### 📝 Документация и тестирование
+- ✅ Подробный README с таблицами и примерами
+- ✅ Улучшенные unit и интеграционные тесты
+- ✅ Проверки синтаксиса всех скриптов
+- ✅ Обновленная структура документации
+
+### 📦 Версия 2.0.0
 **Дата:** 4 августа 2024
 
 #### 🔒 Безопасность
