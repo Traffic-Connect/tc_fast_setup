@@ -56,24 +56,14 @@ interactive_setup() {
     echo -e "${YELLOW}=== Traffic Connect Server Installation ===${NC}"
     echo ""
     echo "Выберите режим установки:"
-    echo "1) Полная установка (Hestia CP + Мониторинг + Дополнительные компоненты)"
-    echo "2) Только Hestia CP"
-    echo "3) Только система мониторинга"
-    echo "4) Только дополнительные компоненты"
-    echo "5) Выборочная установка"
-    echo "6) Настройка конфигурации"
-    echo "7) Выход"
+    echo "1) Полная установка (все компоненты)"
+    echo "2) Выход"
     echo ""
     
     read -p "Ваш выбор [1]: " choice
     case $choice in
         1) install_full ;;
-        2) install_hestia_only ;;
-        3) install_monitoring_only ;;
-        4) install_additional_only ;;
-        5) install_selective ;;
-        6) interactive_configuration ;;
-        7) exit 0 ;;
+        2) exit 0 ;;
         *) install_full ;;
     esac
 }
@@ -99,91 +89,7 @@ install_full() {
     show_final_message
 }
 
-install_hestia_only() {
-    log_info "Установка только Hestia CP..."
-    
-    # Проверка системных требований
-    if ! check_system_requirements; then
-        log_err "Системные требования не выполнены"
-        exit 1
-    fi
-    
-    # Интерактивная настройка портов
-    interactive_port_config
-    
-    # Здесь будет вызов функции установки только Hestia CP
-    log_info "Функция установки только Hestia CP будет добавлена в следующей версии"
-}
 
-install_monitoring_only() {
-    log_info "Установка только системы мониторинга..."
-    
-    # Проверка системных требований
-    if ! check_system_requirements; then
-        log_err "Системные требования не выполнены"
-        exit 1
-    fi
-    
-    # Интерактивная настройка портов
-    interactive_port_config
-    
-    # Здесь будет вызов функции установки только мониторинга
-    log_info "Функция установки только мониторинга будет добавлена в следующей версии"
-}
-
-install_additional_only() {
-    log_info "Установка только дополнительных компонентов..."
-    
-    bash "$PROJECT_ROOT/install_tools.sh"
-}
-
-install_selective() {
-    log_info "Выборочная установка..."
-    
-    echo ""
-    echo "Выберите компоненты для установки:"
-    echo ""
-    
-    # Hestia CP
-    read -p "Установить Hestia CP? (y/n) [y]: " install_hestia
-    install_hestia=${install_hestia:-y}
-    
-    # Система мониторинга
-    read -p "Установить систему мониторинга (Grafana, Prometheus, Loki)? (y/n) [y]: " install_monitoring
-    install_monitoring=${install_monitoring:-y}
-    
-    # Дополнительные компоненты
-    read -p "Установить дополнительные компоненты (шаблоны, BadBot, Link Manager)? (y/n) [y]: " install_additional
-    install_additional=${install_additional:-y}
-    
-    # Проверка системных требований
-    if [[ "$install_hestia" =~ ^[Yy]$ ]] || [[ "$install_monitoring" =~ ^[Yy]$ ]]; then
-        if ! check_system_requirements; then
-            log_err "Системные требования не выполнены"
-            exit 1
-        fi
-        
-        # Интерактивная настройка портов
-        interactive_port_config
-    fi
-    
-    # Выполнение выбранных компонентов
-    if [[ "$install_hestia" =~ ^[Yy]$ ]] && [[ "$install_monitoring" =~ ^[Yy]$ ]]; then
-        log_info "Установка Hestia CP и системы мониторинга..."
-        bash "$PROJECT_ROOT/install_complete.sh"
-    elif [[ "$install_hestia" =~ ^[Yy]$ ]]; then
-        log_info "Установка только Hestia CP..."
-        # Здесь будет вызов функции установки только Hestia CP
-    elif [[ "$install_monitoring" =~ ^[Yy]$ ]]; then
-        log_info "Установка только системы мониторинга..."
-        # Здесь будет вызов функции установки только мониторинга
-    fi
-    
-    if [[ "$install_additional" =~ ^[Yy]$ ]]; then
-        log_info "Установка дополнительных компонентов..."
-        bash "$PROJECT_ROOT/install_tools.sh"
-    fi
-}
 
 # Интерактивная настройка конфигурации
 interactive_configuration() {

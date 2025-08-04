@@ -956,6 +956,19 @@ show_progress() {
     printf "] %d%%" $percentage
 }
 
+# Функция для получения версии компонента
+get_version() {
+    local component="$1"
+    case $component in
+        "GRAFANA") echo "$GRAFANA_VERSION" ;;
+        "PROMETHEUS") echo "$PROMETHEUS_VERSION" ;;
+        "LOKI") echo "$LOKI_VERSION" ;;
+        "NODE_EXPORTER") echo "$NODE_EXPORTER_VERSION" ;;
+        "PUSHGATEWAY") echo "$PUSHGATEWAY_VERSION" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Функция для создания заглушек установки (для тестирования)
 install_grafana() {
     log_info "Установка Grafana..."

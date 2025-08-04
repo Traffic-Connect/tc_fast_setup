@@ -32,54 +32,11 @@ run_test_suite() {
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
-# Функция показа итоговых результатов
-show_final_results() {
-    echo ""
-    echo "=========================================="
-    echo "=== ИТОГОВЫЕ РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ ==="
-    echo "=========================================="
-    echo "Всего тестовых наборов: $TOTAL_TESTS"
-    echo -e "Пройдено успешно: ${GREEN}$PASSED_TESTS${NC}"
-    echo -e "Провалено: ${RED}$FAILED_TESTS${NC}"
-    
-    if [ $FAILED_TESTS -eq 0 ]; then
-        echo ""
-        echo -e "${GREEN}🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!${NC}"
-        echo "Проект готов к использованию."
-        exit 0
-    else
-        echo ""
-        echo -e "${RED}⚠️  ЕСТЬ ПРОВАЛЕННЫЕ ТЕСТЫ!${NC}"
-        echo "Необходимо исправить ошибки перед использованием."
-        exit 1
-    fi
-}
-
-# Проверка наличия тестовых файлов
-check_test_files() {
-    local missing_files=()
-    
-    [[ -f "$SCRIPT_DIR/unit/test_common.sh" ]] || missing_files+=("unit/test_common.sh")
-    [[ -f "$SCRIPT_DIR/integration/test_installation.sh" ]] || missing_files+=("integration/test_installation.sh")
-    
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        echo -e "${RED}Ошибка: Отсутствуют тестовые файлы:${NC}"
-        for file in "${missing_files[@]}"; do
-            echo "  - $file"
-        done
-        exit 1
-    fi
-}
-
 # Главная функция
 main() {
-    echo "🚀 ЗАПУСК ПОЛНОГО ТЕСТИРОВАНИЯ ПРОЕКТА"
-    echo "Проект: Traffic Connect Server Installation"
+    echo "🚀 ЗАПУСК ТЕСТИРОВАНИЯ ПРОЕКТА"
     echo "Дата: $(date)"
     echo ""
-    
-    # Проверка наличия тестовых файлов
-    check_test_files
     
     # Запуск unit тестов
     run_test_suite "$SCRIPT_DIR/unit/test_common.sh" "UNIT ТЕСТЫ"
@@ -88,7 +45,23 @@ main() {
     run_test_suite "$SCRIPT_DIR/integration/test_installation.sh" "ИНТЕГРАЦИОННЫЕ ТЕСТЫ"
     
     # Показ итоговых результатов
-    show_final_results
+    echo ""
+    echo "=========================================="
+    echo "=== ИТОГОВЫЕ РЕЗУЛЬТАТЫ ==="
+    echo "=========================================="
+    echo "Всего тестовых наборов: $TOTAL_TESTS"
+    echo -e "Пройдено успешно: ${GREEN}$PASSED_TESTS${NC}"
+    echo -e "Провалено: ${RED}$FAILED_TESTS${NC}"
+    
+    if [ $FAILED_TESTS -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!${NC}"
+        exit 0
+    else
+        echo ""
+        echo -e "${RED}⚠️  ЕСТЬ ПРОВАЛЕННЫЕ ТЕСТЫ!${NC}"
+        exit 1
+    fi
 }
 
 # Запуск главной функции

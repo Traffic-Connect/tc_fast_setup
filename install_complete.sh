@@ -101,6 +101,103 @@ show_live_monitoring() {
 }
 
 # ============================================================================
+# НЕДОСТАЮЩИЕ ФУНКЦИИ УСТАНОВКИ
+# ============================================================================
+
+# Загрузка компонентов
+download_components() {
+    log_info "Загрузка компонентов..."
+    mkdir -p /tmp/install
+    cd /tmp/install
+    
+    # Загрузка Grafana
+    wget -q "https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb" -O grafana.deb
+    check_error "Загрузка Grafana" "grafana"
+    
+    # Загрузка Prometheus
+    wget -q "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" -O prometheus.tar.gz
+    check_error "Загрузка Prometheus" "prometheus"
+    
+    # Загрузка Loki
+    wget -q "https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip" -O loki.zip
+    check_error "Загрузка Loki" "loki"
+    
+    # Загрузка Node Exporter
+    wget -q "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz" -O node_exporter.tar.gz
+    check_error "Загрузка Node Exporter" "node_exporter"
+    
+    # Загрузка Pushgateway
+    wget -q "https://github.com/prometheus/pushgateway/releases/download/v${PUSHGATEWAY_VERSION}/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64.tar.gz" -O pushgateway.tar.gz
+    check_error "Загрузка Pushgateway" "pushgateway"
+    
+    log_ok "Все компоненты загружены"
+}
+
+# Настройка мониторинга
+setup_monitoring() {
+    log_info "Настройка системы мониторинга..."
+    
+    # Создание пользователей
+    useradd --system --no-create-home --shell /bin/false prometheus
+    useradd --system --no-create-home --shell /bin/false loki
+    useradd --system --no-create-home --shell /bin/false node_exporter
+    useradd --system --no-create-home --shell /bin/false pushgateway
+    
+    # Создание директорий
+    mkdir -p /etc/prometheus /var/lib/prometheus
+    mkdir -p /etc/loki /var/lib/loki
+    mkdir -p /etc/promtail
+    
+    # Настройка прав
+    chown prometheus:prometheus /etc/prometheus /var/lib/prometheus
+    chown loki:loki /etc/loki /var/lib/loki
+    
+    log_ok "Система мониторинга настроена"
+}
+
+# Проверка сервисов
+verify_services() {
+    log_info "Проверка установленных сервисов..."
+    
+    local services=("grafana-server" "prometheus" "loki" "node_exporter" "pushgateway")
+    local failed_services=()
+    
+    for service in "${services[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            log_ok "Сервис $service запущен"
+        else
+            failed_services+=("$service")
+        fi
+    done
+    
+    if [ ${#failed_services[@]} -gt 0 ]; then
+        log_warn "Следующие сервисы не запущены: ${failed_services[*]}"
+        return 1
+    else
+        log_ok "Все сервисы запущены успешно"
+        return 0
+    fi
+}
+
+# Финальная настройка
+final_setup() {
+    log_info "Выполнение финальной настройки..."
+    
+    # Настройка автозапуска
+    systemctl enable grafana-server prometheus loki node_exporter pushgateway
+    
+    # Настройка firewall для мониторинга
+    for port in $GRAFANA_PORT $PROMETHEUS_PORT $LOKI_PORT $NODE_EXPORTER_PORT $PUSHGATEWAY_PORT; do
+        iptables -A INPUT -p tcp --dport $port -j ACCEPT
+    done
+    
+    # Сохранение правил firewall
+    netfilter-persistent save
+    
+    log_ok "Финальная настройка завершена"
+}
+
+# ============================================================================
 # ОСНОВНАЯ ЛОГИКА УСТАНОВКИ
 # ============================================================================
 
@@ -172,6 +269,30 @@ check_version_compatibility() {
     if [ "$loki_version" != "$LOKI_VERSION" ]; then
         echo -e "${YELLOW}⚠ Версии Loki ($loki_version) и Promtail ($LOKI_VERSION) могут быть несовместимы${NC}"
     fi
+}
+
+# Проверка совместимости
+check_compatibility() {
+    log_info "Проверка совместимости системы..."
+    
+    # Проверка архитектуры
+    local arch=$(uname -m)
+    if [[ "$arch" != "x86_64" ]]; then
+        log_err "Неподдерживаемая архитектура: $arch. Требуется x86_64"
+        return 1
+    fi
+    
+    # Проверка ОС
+    if [ -f /etc/os-release ]; then
+        source /etc/os-release
+        if [[ "$ID" != "ubuntu" && "$ID" != "debian" ]]; then
+            log_err "Неподдерживаемая ОС: $ID. Требуется Ubuntu или Debian"
+            return 1
+        fi
+    fi
+    
+    log_ok "Система совместима"
+    return 0
 }
 
 # Вариант A: Добавить проверку зависимостей
@@ -368,7 +489,6 @@ check_error "Настройка fail2ban"
 # 6. Установка Grafana
 echo -e "${YELLOW}=== Установка Grafana ===${NC}"
 {
-    GRAFANA_VERSION=$(get_version "GRAFANA")
     wget https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb -O /tmp/grafana.deb
     dpkg -i /tmp/grafana.deb || apt-get install -fy
     rm -f /tmp/grafana.deb
@@ -450,7 +570,6 @@ check_error "Установка Prometheus"
 # 8. Установка Node Exporter
 echo -e "${YELLOW}=== Установка Node Exporter ===${NC}"
 {
-    NODE_EXPORTER_VERSION=$(get_version "NODE_EXPORTER")
     wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
     tar xvf /tmp/node_exporter.tar.gz -C /tmp/
     mv /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
@@ -481,7 +600,6 @@ check_error "Установка Node Exporter"
 # 9. Установка Pushgateway
 echo -e "${YELLOW}=== Установка Pushgateway ===${NC}"
 {
-    PUSHGATEWAY_VERSION=$(get_version "PUSHGATEWAY")
     wget https://github.com/prometheus/pushgateway/releases/download/v${PUSHGATEWAY_VERSION}/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
     tar xvf /tmp/pushgateway.tar.gz -C /tmp/
     mv /tmp/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64/pushgateway /usr/local/bin/

@@ -47,9 +47,9 @@ install_templates() {
             fi
         fi
     done
-    chown www-data:www-data $NGINX_TEMPL_DIR/*.tpl 2>/dev/null
-    chown www-data:www-data $NGINX_TEMPL_DIR/*.stpl 2>/dev/null
-    chown www-data:www-data $PHPFPM_TEMPL_DIR/*.tpl 2>/dev/null
+    chown www-data:www-data $NGINX_TEMPL_DIR/*.tpl 2>/dev/null || true
+    chown www-data:www-data $NGINX_TEMPL_DIR/*.stpl 2>/dev/null || true
+    chown www-data:www-data $PHPFPM_TEMPL_DIR/*.tpl 2>/dev/null || true
     log_ok "Права на шаблоны установлены."
     echo "[DEBUG] Файлы в $NGINX_TEMPL_DIR:" && ls -l "$NGINX_TEMPL_DIR"
     echo "[DEBUG] Файлы в $PHPFPM_TEMPL_DIR:" && ls -l "$PHPFPM_TEMPL_DIR"

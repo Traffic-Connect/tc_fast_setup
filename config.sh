@@ -62,13 +62,13 @@ ENABLE_ROLLBACK=true
 ENABLE_METRICS=true
 ENABLE_JSON_LOGGING=true
 
-# Хеши для проверки целостности файлов (реальные хеши)
-GEOIP_DB_SHA256="a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
-PROMETHEUS_SHA256="b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3"
-NODE_EXPORTER_SHA256="c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-PUSHGATEWAY_SHA256="d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
-LOKI_SHA256="e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
-GRAFANA_SHA256="f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1"
+# Хеши для проверки целостности файлов (заглушки - нужно заменить на реальные)
+GEOIP_DB_SHA256=""
+PROMETHEUS_SHA256=""
+NODE_EXPORTER_SHA256=""
+PUSHGATEWAY_SHA256=""
+LOKI_SHA256=""
+GRAFANA_SHA256=""
 
 # Настройки загрузки
 CURL_TIMEOUT=300
@@ -88,14 +88,15 @@ METRICS_PORT="9092"
 METRICS_INTERVAL=15
 
 # Логирование
-LOG_LEVEL="INFO"  # DEBUG, INFO, WARN, ERROR
-LOG_FORMAT="JSON"  # TEXT, JSON
-LOG_RETENTION_DAYS=30
-
-# Тестирование
-TEST_MODE=false
-TEST_TIMEOUT=300
-SKIP_TESTS=false
+LOG_LEVEL="INFO"
+LOG_FORMAT="TEXT"
+LOG_RETENTION_DAYS=7
 
 # Конфигурация пользователя (загружается из config.local.sh если существует)
-USER_CONFIG_FILE="config.local.sh" 
+USER_CONFIG_FILE="config.local.sh"
+
+# Пользовательские настройки
+PASSWORD_COMPLEXITY="high"  # low, medium, high
+HESTIA_USER="${DEFAULT_HESTIA_USER}"
+EMAIL="${DEFAULT_EMAIL}"
+HOSTNAME=$(hostname) 

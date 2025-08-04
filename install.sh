@@ -14,7 +14,18 @@ source "$SCRIPT_DIR/lib/interactive.sh"
 
 main() {
     # Проверка root прав
-    check_root
+check_root
+
+# Проверка прав на выполнение
+if [ ! -x "$SCRIPT_DIR/install.sh" ]; then
+    chmod +x "$SCRIPT_DIR/install.sh"
+fi
+if [ ! -x "$SCRIPT_DIR/install_complete.sh" ]; then
+    chmod +x "$SCRIPT_DIR/install_complete.sh"
+fi
+if [ ! -x "$SCRIPT_DIR/install_tools.sh" ]; then
+    chmod +x "$SCRIPT_DIR/install_tools.sh"
+fi
     
     # Настройка логирования
     setup_logging
@@ -69,18 +80,9 @@ case "${1:-}" in
         echo "Использование:"
         echo "  $0                    # Интерактивный режим"
         echo "  $0 --full             # Полная установка"
-        echo "  $0 --hestia           # Только Hestia CP"
-        echo "  $0 --monitoring       # Только мониторинг"
-        echo "  $0 --additional       # Только дополнительные компоненты"
         echo "  $0 --test             # Запуск тестов"
-        echo "  $0 --config           # Настройка конфигурации"
+        echo "  $0 --validate         # Проверка системы"
         echo "  $0 --help             # Показать эту справку"
-        echo ""
-        echo "Примеры:"
-        echo "  $0                    # Запуск интерактивного режима"
-        echo "  $0 --full             # Быстрая полная установка"
-        echo "  $0 --test             # Запуск всех тестов"
-        echo "  $0 --config           # Настройка параметров"
         exit 0
         ;;
     --full)
@@ -114,55 +116,7 @@ case "${1:-}" in
         # Запуск установки
         install_full
         ;;
-    --hestia)
-        log_info "Установка только Hestia CP..."
-        check_root
-        setup_logging
-        
-        # Расширенная проверка системных требований
-        if ! check_system_requirements; then
-            log_err "Системные требования не выполнены"
-            exit 1
-        fi
-        
-        check_internet
-        check_disk_space
-        
-        # Сбор метрик системы
-        if [[ "$ENABLE_METRICS" == "true" ]]; then
-            collect_system_metrics
-        fi
-        
-        install_hestia_only
-        ;;
-    --monitoring)
-        log_info "Установка только системы мониторинга..."
-        check_root
-        setup_logging
-        
-        # Расширенная проверка системных требований
-        if ! check_system_requirements; then
-            log_err "Системные требования не выполнены"
-            exit 1
-        fi
-        
-        check_internet
-        check_disk_space
-        
-        # Сбор метрик системы
-        if [[ "$ENABLE_METRICS" == "true" ]]; then
-            collect_system_metrics
-        fi
-        
-        install_monitoring_only
-        ;;
-    --additional)
-        log_info "Установка только дополнительных компонентов..."
-        check_root
-        setup_logging
-        check_internet
-        install_additional_only
-        ;;
+
     --test)
         log_info "Запуск тестов проекта..."
         if [ -f "$SCRIPT_DIR/tests/run_all_tests.sh" ]; then
@@ -172,12 +126,7 @@ case "${1:-}" in
             exit 1
         fi
         ;;
-    --config)
-        log_info "Запуск настройки конфигурации..."
-        check_root
-        setup_logging
-        interactive_configuration
-        ;;
+
 
     --validate)
         log_info "Валидация конфигурации..."
