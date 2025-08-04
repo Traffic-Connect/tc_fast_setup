@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Connect Server Installation</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок -->
+        <header class="header">
+            <h1><i class="fas fa-server"></i> Traffic Connect Server Installation</h1>
+            <p>Интерактивная установка сервера с Hestia CP и системой мониторинга</p>
+        </header>
+
+        <!-- Навигация -->
+        <nav class="nav">
+            <button class="nav-btn active" data-tab="overview">
+                <i class="fas fa-home"></i> Обзор
+            </button>
+            <button class="nav-btn" data-tab="installation">
+                <i class="fas fa-download"></i> Установка
+            </button>
+            <button class="nav-btn" data-tab="monitoring">
+                <i class="fas fa-chart-line"></i> Мониторинг
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <i class="fas fa-cog"></i> Настройки
+            </button>
+            <button class="nav-btn" data-tab="logs">
+                <i class="fas fa-file-alt"></i> Логи
+            </button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main">
+            <!-- Вкладка "Обзор" -->
+            <div class="tab-content active" id="overview">
+                <div class="overview-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-info-circle"></i>
+                            <h3>Информация о системе</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <span class="label">ОС:</span>
+                                <span class="value" id="os-info">Загрузка...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Архитектура:</span>
+                                <span class="value" id="arch-info">Загрузка...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Свободное место:</span>
+                                <span class="value" id="disk-info">Загрузка...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Интернет:</span>
+                                <span class="value" id="internet-info">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-list-check"></i>
+                            <h3>Компоненты</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="component-list">
+                                <div class="component-item">
+                                    <i class="fas fa-globe"></i>
+                                    <span>Hestia Control Panel</span>
+                                    <span class="status" id="hestia-status">Не установлен</span>
+                                </div>
+                                <div class="component-item">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Grafana</span>
+                                    <span class="status" id="grafana-status">Не установлен</span>
+                                </div>
+                                <div class="component-item">
+                                    <i class="fas fa-database"></i>
+                                    <span>Prometheus</span>
+                                    <span class="status" id="prometheus-status">Не установлен</span>
+                                </div>
+                                <div class="component-item">
+                                    <i class="fas fa-search"></i>
+                                    <span>Loki</span>
+                                    <span class="status" id="loki-status">Не установлен</span>
+                                </div>
+                                <div class="component-item">
+                                    <i class="fas fa-shield-alt"></i>
+                                    <span>Fail2ban</span>
+                                    <span class="status" id="fail2ban-status">Не установлен</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-rocket"></i>
+                            <h3>Быстрый старт</h3>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary" onclick="startFullInstallation()">
+                                <i class="fas fa-play"></i> Полная установка
+                            </button>
+                            <button class="btn btn-secondary" onclick="startCustomInstallation()">
+                                <i class="fas fa-cogs"></i> Выборочная установка
+                            </button>
+                            <button class="btn btn-info" onclick="runTests()">
+                                <i class="fas fa-vial"></i> Запустить тесты
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка "Установка" -->
+            <div class="tab-content" id="installation">
+                <div class="installation-wizard">
+                    <div class="wizard-step active" data-step="1">
+                        <h3>Шаг 1: Выбор компонентов</h3>
+                        <div class="component-selector">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-hestia" checked>
+                                <span class="checkmark"></span>
+                                Hestia Control Panel
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-grafana" checked>
+                                <span class="checkmark"></span>
+                                Grafana (визуализация)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-prometheus" checked>
+                                <span class="checkmark"></span>
+                                Prometheus (метрики)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-loki" checked>
+                                <span class="checkmark"></span>
+                                Loki (логи)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-fail2ban" checked>
+                                <span class="checkmark"></span>
+                                Fail2ban (безопасность)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="install-tools">
+                                <span class="checkmark"></span>
+                                Дополнительные инструменты
+                            </label>
+                        </div>
+                        <div class="wizard-actions">
+                            <button class="btn btn-primary" onclick="nextStep()">Далее</button>
+                        </div>
+                    </div>
+
+                    <div class="wizard-step" data-step="2">
+                        <h3>Шаг 2: Настройка параметров</h3>
+                        <div class="form-group">
+                            <label for="hestia-user">Пользователь Hestia CP:</label>
+                            <input type="text" id="hestia-user" value="admin" placeholder="admin">
+                        </div>
+                        <div class="form-group">
+                            <label for="admin-email">Email администратора:</label>
+                            <input type="email" id="admin-email" value="admin@example.com" placeholder="admin@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="install-mode">Режим установки:</label>
+                            <select id="install-mode">
+                                <option value="parallel">Параллельная установка (быстрее)</option>
+                                <option value="sequential">Последовательная установка (надежнее)</option>
+                            </select>
+                        </div>
+                        <div class="wizard-actions">
+                            <button class="btn btn-secondary" onclick="prevStep()">Назад</button>
+                            <button class="btn btn-primary" onclick="nextStep()">Далее</button>
+                        </div>
+                    </div>
+
+                    <div class="wizard-step" data-step="3">
+                        <h3>Шаг 3: Подтверждение</h3>
+                        <div class="confirmation-summary">
+                            <h4>Выбранные компоненты:</h4>
+                            <ul id="selected-components"></ul>
+                            
+                            <h4>Параметры установки:</h4>
+                            <ul id="installation-params"></ul>
+                        </div>
+                        <div class="wizard-actions">
+                            <button class="btn btn-secondary" onclick="prevStep()">Назад</button>
+                            <button class="btn btn-success" onclick="startInstallation()">
+                                <i class="fas fa-play"></i> Начать установку
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="wizard-step" data-step="4">
+                        <h3>Шаг 4: Установка</h3>
+                        <div class="installation-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                            <div class="progress-text" id="progress-text">Подготовка к установке...</div>
+                        </div>
+                        <div class="installation-log" id="installation-log"></div>
+                        <div class="wizard-actions">
+                            <button class="btn btn-danger" onclick="cancelInstallation()" id="cancel-btn">
+                                <i class="fas fa-stop"></i> Отменить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка "Мониторинг" -->
+            <div class="tab-content" id="monitoring">
+                <div class="monitoring-dashboard">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-chart-line"></i>
+                            <h3>Статус сервисов</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="service-status" id="service-status">
+                                <div class="service-item">
+                                    <span class="service-name">Hestia CP</span>
+                                    <span class="service-status-badge" data-service="hestia">Проверка...</span>
+                                </div>
+                                <div class="service-item">
+                                    <span class="service-name">Grafana</span>
+                                    <span class="service-status-badge" data-service="grafana">Проверка...</span>
+                                </div>
+                                <div class="service-item">
+                                    <span class="service-name">Prometheus</span>
+                                    <span class="service-status-badge" data-service="prometheus">Проверка...</span>
+                                </div>
+                                <div class="service-item">
+                                    <span class="service-name">Loki</span>
+                                    <span class="service-status-badge" data-service="loki">Проверка...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-link"></i>
+                            <h3>Доступные сервисы</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="service-links">
+                                <a href="#" class="service-link" data-service="hestia" target="_blank">
+                                    <i class="fas fa-globe"></i> Hestia CP
+                                </a>
+                                <a href="#" class="service-link" data-service="grafana" target="_blank">
+                                    <i class="fas fa-chart-bar"></i> Grafana
+                                </a>
+                                <a href="#" class="service-link" data-service="prometheus" target="_blank">
+                                    <i class="fas fa-database"></i> Prometheus
+                                </a>
+                                <a href="#" class="service-link" data-service="loki" target="_blank">
+                                    <i class="fas fa-search"></i> Loki
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка "Настройки" -->
+            <div class="tab-content" id="settings">
+                <div class="settings-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-shield-alt"></i>
+                            <h3>Безопасность</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="setting-item">
+                                <label class="switch">
+                                    <input type="checkbox" id="verify-checksums" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <span>Проверка целостности файлов</span>
+                            </div>
+                            <div class="setting-item">
+                                <label class="switch">
+                                    <input type="checkbox" id="ssl-verify" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <span>Проверка SSL сертификатов</span>
+                            </div>
+                            <div class="setting-item">
+                                <label class="switch">
+                                    <input type="checkbox" id="parallel-install">
+                                    <span class="slider"></span>
+                                </label>
+                                <span>Параллельная установка</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-download"></i>
+                            <h3>Загрузка</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="setting-item">
+                                <label>Таймаут загрузки (сек):</label>
+                                <input type="number" id="curl-timeout" value="300" min="30" max="1800">
+                            </div>
+                            <div class="setting-item">
+                                <label>Количество повторов:</label>
+                                <input type="number" id="curl-retries" value="3" min="1" max="10">
+                            </div>
+                            <div class="setting-item">
+                                <label>Задержка между повторами (сек):</label>
+                                <input type="number" id="curl-retry-delay" value="5" min="1" max="60">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-save"></i>
+                            <h3>Сохранение настроек</h3>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary" onclick="saveSettings()">
+                                <i class="fas fa-save"></i> Сохранить настройки
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetSettings()">
+                                <i class="fas fa-undo"></i> Сбросить к умолчанию
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка "Логи" -->
+            <div class="tab-content" id="logs">
+                <div class="logs-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>Логи установки</h3>
+                            <button class="btn btn-sm btn-secondary" onclick="refreshLogs()">
+                                <i class="fas fa-sync"></i> Обновить
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="log-selector">
+                                <select id="log-file-selector">
+                                    <option value="install">Лог установки</option>
+                                    <option value="error">Лог ошибок</option>
+                                    <option value="progress">Прогресс</option>
+                                </select>
+                            </div>
+                            <div class="log-content" id="log-content">
+                                <pre>Выберите файл лога для просмотра...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Уведомления -->
+        <div class="notifications" id="notifications"></div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 

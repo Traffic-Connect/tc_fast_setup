@@ -1,0 +1,803 @@
+#!/bin/bash
+# ============================================================================
+# Traffic Connect Server Installation - Основной скрипт
+# ============================================================================
+
+# Загрузка общей библиотеки
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# Проверка root прав
+check_root
+
+# Настройка логирования
+setup_logging
+
+# Проверка совместимости
+check_compatibility
+
+# Проверка системы
+log_info "Выполнение предварительных проверок..."
+check_internet
+check_disk_space
+log_ok "Предварительные проверки пройдены"
+
+# Генерация паролей
+GRAFANA_PASSWORD=$(generate_secure_password)
+HESTIA_PASSWORD=$(generate_secure_password)
+
+# Установка переменных по умолчанию
+HESTIA_USER="${HESTIA_USER:-$DEFAULT_HESTIA_USER}"
+EMAIL="${EMAIL:-$DEFAULT_EMAIL}"
+
+# Сохранение паролей
+save_credentials "$GRAFANA_PASSWORD" "$HESTIA_USER" "$HESTIA_PASSWORD"
+
+# Установка обработчика ошибок для отката
+trap rollback_installation ERR
+
+# Конфигурация для логов
+GEOIP_DB_URL="https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb"
+LOG_DIR="/var/log/nginx"
+
+# Автоопределение путей логов
+find_log_directories() {
+    local log_dirs=()
+    for dir in /var/log/nginx /var/log/hestia; do
+        if [ -d "$dir" ] && [ "$(ls -A $dir/*.log 2>/dev/null)" ]; then
+            log_dirs+=("$dir")
+        fi
+    done
+    echo "${log_dirs[@]}"
+}
+
+# Загрузка GeoIP базы
+download_geoip() {
+    local max_attempts=3
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if wget -q "$GEOIP_DB_URL" -O /etc/promtail/geoip/GeoLite2-City.mmdb; then
+            echo -e "${GREEN}✓ GeoIP база загружена${NC}"
+            return 0
+        else
+            echo -e "${RED}✗ Попытка $attempt из $max_attempts не удалась${NC}"
+            sleep 5
+            ((attempt++))
+        fi
+    done
+    return 1
+}
+
+# Проверка совместимости версий
+check_version_compatibility() {
+    local loki_version=$(curl -s http://localhost:3100/ready | jq -r '.version' 2>/dev/null)
+    if [ "$loki_version" != "$LOKI_VERSION" ]; then
+        echo -e "${YELLOW}⚠ Версии Loki ($loki_version) и Promtail ($LOKI_VERSION) могут быть несовместимы${NC}"
+    fi
+}
+
+# Вариант A: Добавить проверку зависимостей
+check_dependencies() {
+    local deps=("wget" "curl" "jq" "unzip" "setfacl")
+    local missing_deps=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo -e "${RED}Отсутствуют зависимости: ${missing_deps[*]}${NC}"
+        echo -e "${BLUE}Устанавливаем...${NC}"
+        apt install -y "${missing_deps[@]}"
+    fi
+}
+
+# Настройка множественных источников логов
+setup_multiple_log_sources() {
+    local log_sources=()
+    
+    # Поиск всех возможных источников логов
+    for pattern in "/var/log/nginx/*.log" "/var/log/hestia/*.log"; do
+        if ls $pattern >/dev/null 2>&1; then
+            log_sources+=("$pattern")
+        fi
+    done
+    
+    # Создание конфигурации для каждого источника
+    for source in "${log_sources[@]}"; do
+        local job_name=$(basename $(dirname "$source"))
+        cat >> /etc/promtail/promtail-config.yaml <<EOF
+- job_name: $job_name
+  static_configs:
+  - targets: [localhost]
+    labels:
+      job: $job_name
+      __path__: "$source"
+EOF
+    done
+}
+
+# ============================================================================
+# ОСНОВНАЯ УСТАНОВКА
+# ============================================================================
+
+# 2. Обновление системы и установка базовых пакетов
+echo -e "${YELLOW}=== Установка базовых пакетов ===${NC}"
+apt update && apt upgrade -y
+apt install -y fail2ban iptables-persistent netfilter-persistent curl wget \
+               software-properties-common apt-transport-https python3 \
+               python3-pip python3-venv git gnupg2 ca-certificates \
+               adduser libfontconfig1 unzip
+check_error "Установка базовых пакетов"
+
+# 3. Установка Hestia CP
+echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
+install_hestia() {
+    log_info "Установка HestiaCP..."
+    if systemctl is-active --quiet hestia; then
+        log_ok "Hestia CP уже установлена и запущена."
+    else
+        wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
+        bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+        systemctl start hestia
+        check_service "hestia"
+        check_error "Запуск службы Hestia"
+        rm -f /tmp/hst-install.sh
+        log_ok "Установка Hestia CP завершена"
+    fi
+}
+
+# Вызов функции установки Hestia CP
+install_hestia
+check_error "Установка Hestia CP"
+
+# Проверка веб-интерфейса Hestia CP
+log_info "Проверка веб-интерфейса Hestia CP..."
+sleep 10
+check_service "hestia" "8083"
+
+# 4. Настройка iptables
+echo -e "${YELLOW}=== Настройка firewall ===${NC}"
+iptables -F && iptables -X
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT ACCEPT
+
+# Базовые правила
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Разрешение HTTP/HTTPS
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Разрешение Cloudflare IPs
+echo -e "${BLUE}Добавление правил для Cloudflare...${NC}"
+for ip in $(curl -s https://www.cloudflare.com/ips-v4); do
+    iptables -A INPUT -p tcp -s "$ip" --dport 80 -j ACCEPT
+    iptables -A INPUT -p tcp -s "$ip" --dport 443 -j ACCEPT
+done
+
+# Порты Hestia CP и мониторинга
+for port in 22 80 443 8083 3306 5432 8080 25 465 587 993 995 143 110 53 3000 9090 9100 3100 9080 9191 9091; do
+    iptables -A INPUT -p tcp --dport $port -j ACCEPT
+done
+iptables -A INPUT -p udp --dport 53 -j ACCEPT  # DNS UDP
+
+# Защита от атак
+iptables -N SYN_FLOOD
+iptables -A INPUT -p tcp --syn -j SYN_FLOOD
+iptables -A SYN_FLOOD -m limit --limit 10/s --limit-burst 25 -j RETURN
+iptables -A SYN_FLOOD -j DROP
+
+iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+
+# Защита от портовых сканеров
+iptables -N PORT_SCAN
+iptables -A INPUT -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j PORT_SCAN
+iptables -A PORT_SCAN -m limit --limit 1/s -j RETURN
+iptables -A PORT_SCAN -j DROP
+
+netfilter-persistent save
+check_error "Настройка firewall"
+
+# 5. Настройка fail2ban
+echo -e "${YELLOW}=== Настройка fail2ban ===${NC}"
+cat > /etc/fail2ban/jail.local <<EOL
+[DEFAULT]
+ignoreip = 127.0.0.1/8
+bantime = 1h
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 3
+
+[nginx-botsearch]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 10
+findtime = 3600
+bantime = 86400
+
+[nginx-dos]
+enabled = true
+port = http,https
+filter = nginx-dos
+logpath = /var/log/nginx/access.log
+maxretry = 100
+findtime = 300
+bantime = 3600
+
+[hestia-auth]
+enabled = true
+port = 8083
+filter = hestia-auth
+logpath = /var/log/hestia/auth.log
+maxretry = 5
+findtime = 600
+bantime = 86400
+EOL
+
+# Создаем фильтры для fail2ban
+cat > /etc/fail2ban/filter.d/nginx-dos.conf <<EOL
+[Definition]
+failregex = ^<HOST> -.*"(GET|POST|HEAD).*HTTP.*" (404|503|400|499) .*$
+ignoreregex =
+EOL
+
+cat > /etc/fail2ban/filter.d/hestia-auth.conf <<EOL
+[Definition]
+failregex = .*Authentication failed for .* from <HOST>
+ignoreregex =
+EOL
+
+systemctl enable --now fail2ban
+check_service "fail2ban"
+check_error "Настройка fail2ban"
+
+# 6. Установка Grafana
+echo -e "${YELLOW}=== Установка Grafana ===${NC}"
+{
+    GRAFANA_VERSION=$(get_version "GRAFANA")
+    wget https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb -O /tmp/grafana.deb
+    dpkg -i /tmp/grafana.deb || apt-get install -fy
+    rm -f /tmp/grafana.deb
+    systemctl daemon-reload
+    systemctl enable grafana-server
+    systemctl start grafana-server
+} > /dev/null 2>&1
+check_service "grafana-server" "3000"
+check_error "Установка Grafana"
+
+# 7. Установка Prometheus
+echo -e "${YELLOW}=== Установка Prometheus ===${NC}"
+{
+    useradd --no-create-home --shell /bin/false prometheus 2>/dev/null || true
+    mkdir -p /etc/prometheus /var/lib/prometheus
+    chown prometheus:prometheus /var/lib/prometheus
+
+    wget https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz -O /tmp/prometheus.tar.gz
+    tar xvf /tmp/prometheus.tar.gz -C /tmp/
+    mv /tmp/prometheus-${PROMETHEUS_VERSION}.linux-amd64/prometheus /usr/local/bin/
+    mv /tmp/prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool /usr/local/bin/
+    chown prometheus:prometheus /usr/local/bin/prometheus
+    chown prometheus:prometheus /usr/local/bin/promtool
+
+    cat > /etc/prometheus/prometheus.yml <<EOF
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['localhost:9080']
+  - job_name: 'fail2ban'
+    static_configs:
+      - targets: ['localhost:9191']
+  - job_name: 'pushgateway'
+    honor_labels: true
+    static_configs:
+      - targets: ['localhost:9091']
+EOF
+
+    cat > /etc/systemd/system/prometheus.service <<EOF
+[Unit]
+Description=Prometheus Monitoring
+After=network.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus \\
+    --config.file=/etc/prometheus/prometheus.yml \\
+    --storage.tsdb.path=/var/lib/prometheus \\
+    --web.listen-address=0.0.0.0:9090 \\
+    --web.enable-lifecycle
+
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable prometheus
+    systemctl start prometheus
+} > /dev/null 2>&1
+check_service "prometheus" "9090"
+check_error "Установка Prometheus"
+
+# 8. Установка Node Exporter
+echo -e "${YELLOW}=== Установка Node Exporter ===${NC}"
+{
+    NODE_EXPORTER_VERSION=$(get_version "NODE_EXPORTER")
+    wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
+    tar xvf /tmp/node_exporter.tar.gz -C /tmp/
+    mv /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+    useradd --no-create-home --shell /bin/false node_exporter
+    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+
+    cat > /etc/systemd/system/node_exporter.service <<EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable node_exporter
+    systemctl start node_exporter
+} > /dev/null 2>&1
+check_service "node_exporter" "9100"
+check_error "Установка Node Exporter"
+
+# 9. Установка Pushgateway
+echo -e "${YELLOW}=== Установка Pushgateway ===${NC}"
+{
+    PUSHGATEWAY_VERSION=$(get_version "PUSHGATEWAY")
+    wget https://github.com/prometheus/pushgateway/releases/download/v${PUSHGATEWAY_VERSION}/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
+    tar xvf /tmp/pushgateway.tar.gz -C /tmp/
+    mv /tmp/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64/pushgateway /usr/local/bin/
+    useradd --no-create-home --shell /bin/false pushgateway
+    chown pushgateway:pushgateway /usr/local/bin/pushgateway
+
+    cat > /etc/systemd/system/pushgateway.service <<EOF
+[Unit]
+Description=Prometheus Pushgateway
+After=network.target
+
+[Service]
+User=pushgateway
+Group=pushgateway
+ExecStart=/usr/local/bin/pushgateway \\
+    --web.listen-address=:9091
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable pushgateway
+    systemctl start pushgateway
+} > /dev/null 2>&1
+check_service "pushgateway" "9091"
+check_error "Установка Pushgateway"
+
+# 10. Установка Loki и Promtail
+echo -e "${YELLOW}=== Установка Loki и Promtail ===${NC}"
+{
+
+    
+    # Установка Loki
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip
+    unzip /tmp/loki.zip -d /tmp/
+    mv /tmp/loki-linux-amd64 /usr/local/bin/loki
+    chmod +x /usr/local/bin/loki
+
+    useradd --no-create-home --shell /bin/false loki
+    mkdir -p /etc/loki /var/lib/loki
+    chown loki:loki /var/lib/loki
+
+    cat > /etc/loki/loki-config.yaml <<EOF
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  http_server_read_timeout: 5m
+  http_server_write_timeout: 5m
+  grpc_server_max_recv_msg_size: 104857600  # 100MB
+  grpc_server_max_send_msg_size: 104857600  # 100MB
+
+common:
+  path_prefix: /var/lib/loki
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  query_timeout: 5m  # Явно устанавливаем 5 минут
+  max_query_length: 168h
+  max_query_parallelism: 32
+  max_streams_matchers_per_query: 1000
+  max_concurrent_tail_requests: 10
+  max_entries_limit_per_query: 5000
+  max_chunks_per_query: 2000000
+  max_query_series: 500
+
+chunk_store_config:
+  max_look_back_period: 0s
+
+table_manager:
+  retention_deletes_enabled: false
+  retention_period: 0s
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+query_scheduler:
+  max_outstanding_requests_per_tenant: 100
+EOF
+
+    cat > /etc/systemd/system/loki.service <<EOF
+[Unit]
+Description=Loki log aggregation system
+After=network.target
+
+[Service]
+User=loki
+Group=loki
+Type=simple
+ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki-config.yaml
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Установка Promtail
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip -O /tmp/promtail.zip
+    unzip /tmp/promtail.zip -d /tmp/
+    mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+    chmod +x /usr/local/bin/promtail
+
+    useradd --no-create-home --shell /bin/false promtail
+    mkdir -p /etc/promtail
+    chown promtail:promtail /etc/promtail
+
+    systemctl daemon-reload
+    systemctl enable --now loki
+} > /dev/null 2>&1
+check_service "loki" "3100"
+check_error "Установка Loki и Promtail"
+
+# 11. Настройка экспортера для fail2ban
+echo -e "${YELLOW}=== Настройка мониторинга fail2ban ===${NC}"
+{
+    apt-get install -y python3-prometheus-client
+    cat <<'EOF' | tee /usr/local/bin/fail2ban_exporter.py
+from prometheus_client import start_http_server, Gauge
+import subprocess
+import time
+
+banned_ips = Gauge('fail2ban_banned_ips', 'Number of banned IPs by fail2ban')
+
+def collect():
+    try:
+        output = subprocess.check_output(["fail2ban-client", "status"])
+        banned = 0
+        for line in output.decode().splitlines():
+            if "Total banned" in line:
+                banned = int(line.split(":")[1].strip())
+        banned_ips.set(banned)
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == '__main__':
+    start_http_server(9191)
+    while True:
+        collect()
+        time.sleep(15)
+EOF
+
+    chmod +x /usr/local/bin/fail2ban_exporter.py
+
+    cat <<EOF | tee /etc/systemd/system/fail2ban_exporter.service
+[Unit]
+Description=Fail2Ban Metrics Exporter
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/python3 /usr/local/bin/fail2ban_exporter.py
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now fail2ban_exporter
+} > /dev/null 2>&1
+check_service "fail2ban_exporter" "9191"
+check_error "Настройка мониторинга fail2ban"
+
+# 12. Настройка Grafana
+echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
+{
+    while ! systemctl is-active --quiet grafana-server; do
+        sleep 1
+    done
+
+    grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
+
+    until curl -u admin:admin -X POST -H "Content-Type: application/json" \
+      -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy"}' \
+      http://localhost:3000/api/datasources; do
+        sleep 2
+    done
+
+    until curl -u admin:admin -X POST -H "Content-Type: application/json" \
+      -d '{"name":"Loki","type":"loki","url":"http://localhost:3100","access":"proxy"}' \
+      http://localhost:3000/api/datasources; do
+        sleep 2
+    done
+
+    DASHBOARD_IDS="1860 11074 13659 13639"
+    for DASH in $DASHBOARD_IDS; do
+        curl -u admin:admin -X POST -H "Content-Type: application/json" \
+          -d "{\"dashboard\":$(curl -s https://grafana.com/api/dashboards/$DASH/revisions/latest/download),\"overwrite\":true}" \
+          http://localhost:3000/api/dashboards/import
+    done
+} > /dev/null 2>&1
+check_error "Настройка Grafana"
+
+# ============================================================================
+# ДОПОЛНИТЕЛЬНАЯ НАСТРОЙКА PROMTAIL (из файла 2 (2).sh)
+# ============================================================================
+
+echo -e "${YELLOW}=== Дополнительная настройка Promtail ===${NC}"
+
+# Проверка зависимостей
+echo -e "${BLUE}Проверка зависимостей...${NC}"
+check_dependencies
+
+# Подготовка
+systemctl stop promtail 2>/dev/null || true
+rm -f /tmp/positions.yaml
+
+# Автоопределение путей логов (Nginx и Hestia)
+echo -e "${BLUE}Поиск директорий с логами...${NC}"
+FOUND_LOG_DIRS=$(find_log_directories)
+if [ -n "$FOUND_LOG_DIRS" ]; then
+    LOG_DIRS=($FOUND_LOG_DIRS)
+    echo -e "${GREEN}Найдены директории с логами:${NC}"
+    for dir in "${LOG_DIRS[@]}"; do
+        echo -e "  - $dir"
+    done
+    # Используем первую найденную директорию как основную
+    LOG_DIR="${LOG_DIRS[0]}"
+    echo -e "${GREEN}Основная директория логов: $LOG_DIR${NC}"
+else
+    echo -e "${YELLOW}Директории с логами не найдены, используем стандартную: $LOG_DIR${NC}"
+fi
+
+# Настройка GeoIP
+echo -e "${YELLOW}=== Настройка GeoIP ===${NC}"
+mkdir -p /etc/promtail/geoip
+if download_geoip; then
+    chown -R promtail:promtail /etc/promtail
+else
+    echo -e "${RED}ОШИБКА: Не удалось загрузить GeoIP базу данных${NC}"
+    echo -e "${YELLOW}Продолжаем без GeoIP...${NC}"
+fi
+
+
+
+# Оптимизированная конфигурация Promtail
+echo -e "${YELLOW}=== Создание оптимизированной конфигурации ===${NC}"
+cat > /etc/promtail/promtail-config.yaml <<EOF
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1024
+    timeout: 10s
+
+scrape_configs:
+- job_name: nginx
+  static_configs:
+  - targets: [localhost]
+    labels:
+      job: nginx
+      __path__: "$LOG_DIR/*.log"
+  pipeline_stages:
+    - regex:
+        expression: '^(?P<remote_addr>\S+) \S+ \S+ \[(?P<timestamp>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<bytes>\d+) "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)"'
+    - labels:
+        method:
+        status:
+        path:
+        protocol:
+        remote_addr:
+        user_agent:
+        referer:
+    - timestamp:
+        source: timestamp
+        format: "02/Jan/2006:15:04:05 -0700"
+    - geoip:
+        db: "/etc/promtail/geoip/GeoLite2-City.mmdb"
+        db_type: "city"
+        source: "remote_addr"
+        target: "geoip"
+    - output:
+        source: user_agent
+    - output:
+        source: remote_addr
+EOF
+
+# Добавление множественных источников логов
+echo -e "${BLUE}Настройка множественных источников логов...${NC}"
+setup_multiple_log_sources
+
+# Настройка прав
+echo -e "${YELLOW}=== Настройка прав доступа ===${NC}"
+chown -R root:adm "$LOG_DIR"
+chmod -R 750 "$LOG_DIR"
+setfacl -Rm u:promtail:rx "$LOG_DIR"
+setfacl -dm u:promtail:rx "$LOG_DIR"
+
+# Проверка доступа
+echo -e "${BLUE}Проверка доступа к логам...${NC}"
+if [ -d "$LOG_DIR" ] && [ "$(ls -A $LOG_DIR/*.log 2>/dev/null)" ]; then
+    if ! sudo -u promtail head -n 1 "$LOG_DIR"/*.log >/dev/null 2>&1; then
+        echo -e "${RED}ОШИБКА: Promtail не может читать логи${NC}"
+        echo "Проблемные файлы:"
+        sudo -u promtail ls -la "$LOG_DIR"/*.log
+        exit 1
+    else
+        echo -e "${GREEN}✓ Доступ к логам настроен корректно${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Директория логов пуста или не существует: $LOG_DIR${NC}"
+    echo -e "${YELLOW}Promtail будет запущен, но логи не будут собираться${NC}"
+fi
+
+# Обновленный systemd сервис
+echo -e "${YELLOW}=== Обновление сервиса ===${NC}"
+cat > /etc/systemd/system/promtail.service <<EOF
+[Unit]
+Description=Promtail service
+After=network.target
+
+[Service]
+User=promtail
+Group=promtail
+ExecStart=/usr/local/bin/promtail \\
+    -config.file=/etc/promtail/promtail-config.yaml \\
+    -config.expand-env=true
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+Environment="LOG_DIR=$LOG_DIR"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Перезапуск Promtail
+echo -e "${YELLOW}=== Перезапуск Promtail ===${NC}"
+systemctl daemon-reload
+systemctl restart promtail
+check_service "promtail" "9080"
+
+# Проверка сбора логов
+echo -e "${YELLOW}=== Проверка работы ===${NC}"
+echo "Ожидание 20 секунд для сбора логов..."
+sleep 20
+
+# Проверка извлечения полей
+LOG_CHECK=$(curl -s -G "http://localhost:3100/loki/api/v1/query" --data-urlencode 'query={job="nginx"} | logfmt | line_format "{{.remote_addr}} {{.user_agent}}"' | jq -r '.data.result[0].values[0][1]')
+
+if [ -n "$LOG_CHECK" ]; then
+  echo -e "${GREEN}✓ Логи успешно собираются${NC}"
+  echo "Пример извлеченных данных:"
+  echo "$LOG_CHECK"
+  
+  # Проверка GeoIP
+  GEOIP_CHECK=$(curl -s -G "http://localhost:3100/loki/api/v1/query" \
+    --data-urlencode 'query={job="nginx"} | logfmt | remote_addr!="" | geoip_country_name!=""' \
+    | jq -r '.data.result[0].values[0][1]')
+  
+  if [ -n "$GEOIP_CHECK" ]; then
+    echo -e "${GREEN}✓ GeoIP работает! Пример данных:${NC}"
+    echo "$GEOIP_CHECK"
+  else
+    echo -e "${YELLOW}⚠ GeoIP не возвращает данные. Проверьте IP в логах${NC}"
+  fi
+else
+  echo -e "${RED}ОШИБКА: Логи не поступают в Loki или поля не извлекаются${NC}"
+  echo "Дополнительная диагностика:"
+  echo "1. Проверьте файл позиций: cat /tmp/positions.yaml"
+  echo "2. Проверьте логи Promtail: journalctl -u promtail -n 20 --no-pager"
+  echo "3. Проверьте подключение к Loki: curl -v http://localhost:3100/ready"
+  exit 1
+fi
+
+# Финальная проверка
+log_info "Финальная проверка работоспособности сервисов..."
+
+# Проверка целостности установки
+log_info "Проверка целостности установки..."
+verify_installation
+
+# Проверка совместимости версий
+echo -e "${YELLOW}=== Проверка совместимости версий ===${NC}"
+check_version_compatibility
+
+# 13. Завершение установки
+echo -e "${YELLOW}=== Установка завершена ===${NC}"
+echo -e "${GREEN}Доступные сервисы:${NC}"
+echo -e "Hestia CP:    http://$(hostname -I | awk '{print $1}'):8083"
+echo -e "Grafana:      http://$(hostname -I | awk '{print $1}'):3000"
+echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):9090"
+echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):3100"
+echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
+echo -e "\n${GREEN}Данные для входа:${NC}"
+echo -e "Hestia CP:  $HESTIA_USER / $HESTIA_PASSWORD"
+echo -e "Grafana:    admin / $GRAFANA_PASSWORD"
+echo -e "\n${RED}ВАЖНО: Измените пароли${NC}" 
