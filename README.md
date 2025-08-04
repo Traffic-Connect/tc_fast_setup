@@ -19,6 +19,9 @@
 - [🔍 Диагностика](#-диагностика)
 - [🛠️ Устранение неполадок](#️-устранение-неполадок)
 - [📁 Структура проекта](#-структура-проекта)
+- [🔄 Обновление](#-обновление)
+- [📞 Поддержка](#-поддержка)
+- [🤝 Вклад в проект](#-вклад-в-проект)
 
 ## 🚀 Возможности
 
@@ -407,14 +410,7 @@ sudo systemctl start prometheus
 sudo tar -czf support_logs.tar.gz /var/log/install/ /var/log/grafana/ /var/log/prometheus/
 ```
 
-### 🔗 Полезные ссылки
-- 📖 **Документация**: [GitHub Wiki](https://github.com/Traffic-Connect/tc_fast_setup/wiki)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/Traffic-Connect/tc_fast_setup/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/Traffic-Connect/tc_fast_setup/discussions)
 
-## 📄 Лицензия
-
-**MIT License** - см. файл [LICENSE](LICENSE) для подробностей.
 
 ## 🤝 Вклад в проект
 
