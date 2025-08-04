@@ -9,6 +9,49 @@ source "$(dirname "$0")/common.sh"
 # ИНТЕРАКТИВНЫЕ ФУНКЦИИ
 # ============================================================================
 
+# Интерактивные подсказки
+show_help_tooltip() {
+    local topic=$1
+    
+    case $topic in
+        "ports")
+            echo ""
+            echo "💡 ПОДСКАЗКА: Настройка портов"
+            echo "   • Grafana: 3000 (веб-интерфейс мониторинга)"
+            echo "   • Prometheus: 9090 (метрики)"
+            echo "   • Loki: 3100 (логи)"
+            echo "   • HestiaCP: 8083 (панель управления)"
+            echo ""
+            ;;
+        "security")
+            echo ""
+            echo "💡 ПОДСКАЗКА: Настройки безопасности"
+            echo "   • Проверка целостности: SHA256 хеши"
+            echo "   • GPG проверка: цифровые подписи"
+            echo "   • SSL проверка: безопасные соединения"
+            echo "   • Rollback: автоматический откат при ошибках"
+            echo ""
+            ;;
+        "performance")
+            echo ""
+            echo "💡 ПОДСКАЗКА: Настройки производительности"
+            echo "   • Параллельные процессы: ускоряет установку"
+            echo "   • Размер блока: влияет на скорость загрузки"
+            echo "   • Уровень сжатия: баланс скорости и размера"
+            echo ""
+            ;;
+        "logging")
+            echo ""
+            echo "💡 ПОДСКАЗКА: Настройки логирования"
+            echo "   • DEBUG: максимальная детализация"
+            echo "   • INFO: стандартная информация"
+            echo "   • JSON: структурированные логи"
+            echo "   • Ротация: автоматическая очистка старых логов"
+            echo ""
+            ;;
+    esac
+}
+
 interactive_setup() {
     echo -e "${YELLOW}=== Traffic Connect Server Installation ===${NC}"
     echo ""
@@ -235,8 +278,11 @@ interactive_input() {
 # Интерактивная настройка портов
 interactive_port_config() {
     echo ""
-    echo -e "${YELLOW}=== Настройка портов сервисов ===${NC}"
-    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🔌 НАСТРОЙКА ПОРТОВ 🔌                   ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    
+    show_help_tooltip "ports"
     
     # Проверка доступности портов
     check_ports_availability() {
@@ -250,7 +296,7 @@ interactive_port_config() {
         done
         
         if [ ${#occupied_ports[@]} -gt 0 ]; then
-            echo -e "${YELLOW}Следующие порты уже заняты: ${occupied_ports[*]}${NC}"
+            show_status "warning" "Следующие порты уже заняты: ${occupied_ports[*]}"
             read -p "Продолжить? (y/n) [y]: " continue_choice
             if [[ ! "$continue_choice" =~ ^[Yy]$ ]] && [[ "$continue_choice" != "" ]]; then
                 return 1
@@ -296,7 +342,15 @@ interactive_port_config() {
     export LOKI_PORT
     export HESTIA_PORT
     
-    log_ok "Порты настроены успешно"
+    # Показываем таблицу с результатами
+    show_table "🔌 НАСТРОЕННЫЕ ПОРТЫ" "Сервис" "Порт" "Статус"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Grafana" "$GRAFANA_PORT" "$(check_port_availability $GRAFANA_PORT && echo "✅ Свободен" || echo "❌ Занят")"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Prometheus" "$PROMETHEUS_PORT" "$(check_port_availability $PROMETHEUS_PORT && echo "✅ Свободен" || echo "❌ Занят")"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Loki" "$LOKI_PORT" "$(check_port_availability $LOKI_PORT && echo "✅ Свободен" || echo "❌ Занят")"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "HestiaCP" "$HESTIA_PORT" "$(check_port_availability $HESTIA_PORT && echo "✅ Свободен" || echo "❌ Занят")"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    
+    show_status "success" "Порты настроены успешно"
 }
 
 # Интерактивная настройка безопасности
@@ -450,29 +504,29 @@ show_installation_progress() {
 # ============================================================================
 
 show_final_message() {
+    # Используем новую функцию отчета
+    show_installation_report
+    
     echo ""
-    echo -e "${GREEN}=== Установка завершена успешно! ===${NC}"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                📋 СЛЕДУЮЩИЕ ШАГИ 📋                     ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 1. Откройте HestiaCP и настройте домены"
+    echo "║ 2. Настройте дашборды в Grafana"
+    echo "║ 3. Проверьте метрики в Prometheus"
+    echo "║ 4. Настройте алерты и уведомления"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
-    echo -e "${BLUE}Доступные сервисы:${NC}"
-    echo -e "Hestia CP:    http://$(hostname -I | awk '{print $1}'):$HESTIA_PORT"
-    echo -e "Grafana:      http://$(hostname -I | awk '{print $1}'):$GRAFANA_PORT"
-    echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):$PROMETHEUS_PORT"
-    echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):$LOKI_PORT"
-    echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):$PUSHGATEWAY_PORT"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🔧 ПОЛЕЗНЫЕ КОМАНДЫ 🔧                   ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ • Проверка статуса: systemctl status grafana-server"
+    echo "║ • Просмотр логов: journalctl -u grafana-server -f"
+    echo "║ • Перезапуск Hestia: systemctl restart hestia"
+    echo "║ • Проверка Nginx: nginx -t"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
-    echo -e "${YELLOW}Данные для входа сохранены в: $CREDENTIALS_FILE${NC}"
+    echo "💾 Пароли сохранены в: $CREDENTIALS_FILE"
+    echo "⚠️  ВАЖНО: Измените пароли после установки!"
     echo ""
-    echo -e "${RED}ВАЖНО: Измените пароли после установки!${NC}"
-    echo ""
-    echo -e "${BLUE}Полезные команды:${NC}"
-    echo -e "• Проверка статуса служб: systemctl status grafana-server prometheus loki"
-    echo -e "• Просмотр логов: journalctl -u grafana-server -f"
-    echo -e "• Перезапуск Hestia CP: systemctl restart hestia"
-    echo -e "• Проверка конфигурации Nginx: nginx -t"
-    echo ""
-    echo -e "${BLUE}Метрики установки:${NC}"
-    if [[ "$ENABLE_METRICS" == "true" ]] && [ -f "$LOG_DIR/installation_metrics.log" ]; then
-        echo "Время установки компонентов:"
-        cat "$LOG_DIR/installation_metrics.log" | head -10
-    fi
 } 

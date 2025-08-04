@@ -8,6 +8,102 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
+# ============================================================================
+# ПОШАГОВАЯ УСТАНОВКА С ПРОГРЕССОМ
+# ============================================================================
+
+show_installation_progress() {
+    local steps=(
+        "Проверка системы"
+        "Загрузка компонентов"
+        "Установка HestiaCP"
+        "Установка Grafana"
+        "Установка Prometheus"
+        "Установка Loki"
+        "Установка Node Exporter"
+        "Установка Pushgateway"
+        "Настройка мониторинга"
+        "Проверка сервисов"
+        "Финальная настройка"
+    )
+    
+    local total_steps=${#steps[@]}
+    local current_step=0
+    
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🚀 НАЧАЛО УСТАНОВКИ 🚀                   ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ Всего шагов: $total_steps"
+    echo "║ Время начала: $(date)"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    
+    for step in "${steps[@]}"; do
+        current_step=$((current_step + 1))
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════╗"
+        echo "║ Шаг $current_step/$total_steps: $step"
+        echo "╚══════════════════════════════════════════════════════════╝"
+        
+        # Показываем прогресс
+        show_progress_bar $current_step $total_steps
+        
+        # Здесь будет выполняться установка
+        case $current_step in
+            1) check_system_requirements ;;
+            2) download_components ;;
+            3) install_hestia ;;
+            4) install_grafana ;;
+            5) install_prometheus ;;
+            6) install_loki ;;
+            7) install_node_exporter ;;
+            8) install_pushgateway ;;
+            9) setup_monitoring ;;
+            10) verify_services ;;
+            11) final_setup ;;
+        esac
+        
+        if [ $? -eq 0 ]; then
+            show_status "success" "Шаг $current_step завершен успешно"
+        else
+            show_status "error" "Ошибка на шаге $current_step"
+            return 1
+        fi
+    done
+    
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                ✅ УСТАНОВКА ЗАВЕРШЕНА! ✅                ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+}
+
+# Live мониторинг установки
+show_live_monitoring() {
+    local pid=$1
+    
+    echo ""
+    echo "📊 МОНИТОРИНГ УСТАНОВКИ В РЕАЛЬНОМ ВРЕМЕНИ"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    
+    while kill -0 $pid 2>/dev/null; do
+        local cpu=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+        local mem=$(free | grep Mem | awk '{printf("%.1f", $3/$2 * 100.0)}')
+        local disk=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+        
+        printf "\r║ CPU: %s%% | Память: %s%% | Диск: %s%% | Время: %s ║" \
+               "$cpu" "$mem" "$disk" "$(date +%H:%M:%S)"
+        
+        sleep 2
+    done
+    
+    echo ""
+    echo "╚══════════════════════════════════════════════════════════╝"
+}
+
+# ============================================================================
+# ОСНОВНАЯ ЛОГИКА УСТАНОВКИ
+# ============================================================================
+
 # Проверка root прав
 check_root
 

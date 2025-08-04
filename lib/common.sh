@@ -136,15 +136,19 @@ check_error() {
     local exit_code=$?
     local message="$1"
     local component="${2:-unknown}"
+    local suggestion="${3:-Проверьте логи для получения дополнительной информации}"
     
     if [ $exit_code -ne 0 ]; then
         log_err "$message (код: $exit_code)"
         FAILED_COMPONENTS+=("$component")
         
+        # Показываем детальную информацию об ошибке
+        show_error_details "$exit_code" "$component" "$suggestion"
+        
         if [[ "$ENABLE_ROLLBACK" == "true" ]]; then
+            log_info "Выполняется автоматический rollback компонента $component..."
             rollback_component "$component"
         fi
-        
         return 1
     else
         log_ok "$message"
@@ -714,6 +718,216 @@ verify_installation() {
         log_ok "Все сервисы запущены успешно"
         return 0
     fi
+}
+
+# ============================================================================
+# ВИЗУАЛИЗАЦИЯ И ПРОГРЕСС
+# ============================================================================
+
+# Прогресс-бары и анимации
+show_progress_bar() {
+    local current=$1
+    local total=$2
+    local width=50
+    local percentage=$((current * 100 / total))
+    local filled=$((width * current / total))
+    local empty=$((width - filled))
+    
+    printf "\r["
+    printf "%${filled}s" | tr ' ' '█'
+    printf "%${empty}s" | tr ' ' '░'
+    printf "] %d%%" $percentage
+    
+    if [ $current -eq $total ]; then
+        echo ""
+    fi
+}
+
+show_spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    
+    while kill -0 $pid 2>/dev/null; do
+        local temp=${spinstr#?}
+        printf "\r[%c] Загрузка..." "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+    done
+    printf "\r   \r"
+}
+
+# Статусные индикаторы
+show_status() {
+    local status=$1
+    local message=$2
+    
+    case $status in
+        "success")
+            echo -e "✅ ${GREEN}$message${NC}"
+            ;;
+        "error")
+            echo -e "❌ ${RED}$message${NC}"
+            ;;
+        "warning")
+            echo -e "⚠️  ${YELLOW}$message${NC}"
+            ;;
+        "info")
+            echo -e "ℹ️  ${BLUE}$message${NC}"
+            ;;
+        "loading")
+            echo -e "⏳ ${BLUE}$message${NC}"
+            ;;
+    esac
+}
+
+# Цветные таблицы и статистика
+show_table() {
+    local title="$1"
+    shift
+    local headers=("$@")
+    
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                    $title                    ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    
+    # Заголовки
+    printf "║"
+    for header in "${headers[@]}"; do
+        printf " %-20s ║" "$header"
+    done
+    printf "\n"
+    
+    echo "╠══════════════════════════════════════════════════════════╣"
+}
+
+show_system_stats() {
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+    local mem_usage=$(free | grep Mem | awk '{printf("%.1f", $3/$2 * 100.0)}')
+    local disk_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+    
+    show_table "📊 СТАТИСТИКА СИСТЕМЫ" "Компонент" "Использование" "Статус"
+    
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "CPU" "${cpu_usage}%" "$(get_status_icon $cpu_usage)"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Память" "${mem_usage}%" "$(get_status_icon $mem_usage)"
+    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Диск" "${disk_usage}%" "$(get_status_icon $disk_usage)"
+    
+    echo "╚══════════════════════════════════════════════════════════╝"
+}
+
+get_status_icon() {
+    local value=$1
+    if [ $(echo "$value < 70" | bc 2>/dev/null || echo "0") -eq 1 ]; then
+        echo "✅ Норма"
+    elif [ $(echo "$value < 90" | bc 2>/dev/null || echo "0") -eq 1 ]; then
+        echo "⚠️  Высоко"
+    else
+        echo "❌ Критично"
+    fi
+}
+
+# Анимированные уведомления
+show_notification() {
+    local type=$1
+    local message=$2
+    local duration=${3:-3}
+    
+    case $type in
+        "success")
+            local icon="✅"
+            local color=$GREEN
+            ;;
+        "error")
+            local icon="❌"
+            local color=$RED
+            ;;
+        "warning")
+            local icon="⚠️"
+            local color=$YELLOW
+            ;;
+        "info")
+            local icon="ℹ️"
+            local color=$BLUE
+            ;;
+    esac
+    
+    echo -e "$icon ${color}$message${NC}"
+    
+    # Анимация исчезновения
+    for i in $(seq $duration -1 1); do
+        printf "\r%*s" $(tput cols) ""
+        printf "\r$icon ${color}$message${NC} (исчезнет через $i сек)"
+        sleep 1
+    done
+    printf "\r%*s" $(tput cols) ""
+}
+
+# Детальные сообщения об ошибках
+show_error_details() {
+    local error_code=$1
+    local component=$2
+    local suggestion=$3
+    
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                    ❌ ОШИБКА УСТАНОВКИ ❌                ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ Компонент: $component"
+    echo "║ Код ошибки: $error_code"
+    echo "║ Время: $(date)"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 💡 РЕКОМЕНДАЦИЯ:"
+    echo "║ $suggestion"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+# Улучшенный вывод команд
+show_command_output() {
+    local command="$1"
+    local description="$2"
+    
+    echo ""
+    echo "🔧 Выполнение: $description"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║ Команда: $command"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    
+    # Выполнение команды с цветным выводом
+    if eval "$command" 2>&1 | while IFS= read -r line; do
+        echo "║ $line"
+    done; then
+        echo "╚══════════════════════════════════════════════════════════╝"
+        echo "✅ Команда выполнена успешно"
+    else
+        echo "╚══════════════════════════════════════════════════════════╝"
+        echo "❌ Ошибка выполнения команды"
+        return 1
+    fi
+}
+
+# Финальный отчет с визуализацией
+show_installation_report() {
+    local install_time=$(( $(date +%s) - INSTALLATION_START_TIME ))
+    local minutes=$((install_time / 60))
+    local seconds=$((install_time % 60))
+    
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🎉 УСТАНОВКА ЗАВЕРШЕНА! 🎉                ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 📊 СТАТИСТИКА:"
+    echo "║    • Время установки: ${minutes}м ${seconds}с"
+    echo "║    • Установлено компонентов: ${#INSTALLED_COMPONENTS[@]}"
+    echo "║    • Ошибок: ${#FAILED_COMPONENTS[@]}"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 🌐 ДОСТУПНЫЕ СЕРВИСЫ:"
+    echo "║    • HestiaCP: http://$(hostname -I | awk '{print $1}'):$HESTIA_PORT"
+    echo "║    • Grafana: http://$(hostname -I | awk '{print $1}'):$GRAFANA_PORT"
+    echo "║    • Prometheus: http://$(hostname -I | awk '{print $1}'):$PROMETHEUS_PORT"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
 }
 
 # ============================================================================

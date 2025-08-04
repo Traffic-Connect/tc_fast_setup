@@ -37,15 +37,20 @@ main() {
         collect_system_metrics
     fi
     
+    # Показываем статистику системы
+    show_system_stats
+    
     # Интерактивный ввод данных
     interactive_input
     
     # Генерация паролей с выбранной сложностью
     local password_complexity="${PASSWORD_COMPLEXITY:-high}"
+    show_notification "info" "Генерация безопасных паролей..." 2
     GRAFANA_PASSWORD=$(generate_secure_password 24 "$password_complexity")
     HESTIA_PASSWORD=$(generate_secure_password 24 "$password_complexity")
     
     # Сохранение паролей
+    show_notification "info" "Сохранение учетных данных..." 2
     save_credentials "$GRAFANA_PASSWORD" "$HESTIA_USER" "$HESTIA_PASSWORD"
     
     # Интерактивный выбор режима установки
