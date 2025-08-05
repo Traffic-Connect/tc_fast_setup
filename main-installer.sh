@@ -160,6 +160,12 @@ install_utils() {
 main() {
     log_info "Начало установки Traffic Connect Server..."
     
+    # Настройка локали для избежания предупреждений
+    log_info "Настройка локали..."
+    export LC_ALL=C
+    export LANG=C
+    export LANGUAGE=C
+    
     # Отображение текущих настроек
     log_info "Текущие настройки:"
     log_info "  Hestia Hostname: ${HESTIA_HOSTNAME:-$HOSTNAME}"

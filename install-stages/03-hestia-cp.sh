@@ -212,7 +212,20 @@ install_hestia_cp() {
             log_info "Установщик успешно загружен"
             chmod +x /tmp/hst-install-ubuntu.sh
             log_info "Запускаем установку Hestia CP..."
-            echo "y" | bash /tmp/hst-install-ubuntu.sh \
+            # Создаем временный файл с ответами для автоматизации
+            cat > /tmp/hestia_answers.txt << EOF
+y
+y
+y
+y
+y
+y
+y
+y
+y
+y
+EOF
+            bash /tmp/hst-install-ubuntu.sh \
                 --lang "$LANG" \
                 --hostname "$hestia_hostname" \
                 --username "$hestia_username" \
@@ -224,7 +237,7 @@ install_hestia_cp() {
                 --dovecot "$DOVECOT" \
                 --clamav "$CLAMAV" \
                 --spamassassin "$SPAMASSASSIN" \
-                --force
+                --force < /tmp/hestia_answers.txt
             local install_result=$?
             rm -f /tmp/hst-install-ubuntu.sh
             
@@ -250,6 +263,8 @@ install_hestia_cp() {
             log_err "Error: hst-install-ubuntu.sh download failed."
             return 1
         fi
+        # Очистка временных файлов
+        rm -f /tmp/hestia_answers.txt 2>/dev/null || true
     # Проверка curl
     elif [ -e '/usr/bin/curl' ]; then
         log_info "Используем curl для загрузки..."
@@ -258,7 +273,20 @@ install_hestia_cp() {
             log_info "Установщик успешно загружен"
             chmod +x /tmp/hst-install-ubuntu.sh
             log_info "Запускаем установку Hestia CP..."
-            echo "y" | bash /tmp/hst-install-ubuntu.sh \
+            # Создаем временный файл с ответами для автоматизации
+            cat > /tmp/hestia_answers.txt << EOF
+y
+y
+y
+y
+y
+y
+y
+y
+y
+y
+EOF
+            bash /tmp/hst-install-ubuntu.sh \
                 --lang "$LANG" \
                 --hostname "$hestia_hostname" \
                 --username "$hestia_username" \
@@ -270,7 +298,7 @@ install_hestia_cp() {
                 --dovecot "$DOVECOT" \
                 --clamav "$CLAMAV" \
                 --spamassassin "$SPAMASSASSIN" \
-                --force
+                --force < /tmp/hestia_answers.txt
             local install_result=$?
             rm -f /tmp/hst-install-ubuntu.sh
             
@@ -296,6 +324,8 @@ install_hestia_cp() {
             log_err "Error: hst-install-ubuntu.sh download failed."
             return 1
         fi
+        # Очистка временных файлов
+        rm -f /tmp/hestia_answers.txt 2>/dev/null || true
     else
         log_err "Error: wget or curl not found"
         return 1

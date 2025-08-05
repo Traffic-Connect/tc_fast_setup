@@ -15,6 +15,12 @@ install_base_system() {
     
     log_info "Установка базовых пакетов..."
     
+    # Настройка локали
+    log_info "Настройка локали..."
+    export LC_ALL=C
+    export LANG=C
+    export LANGUAGE=C
+    
     # Обновление системы
     log_info "Обновление системы..."
     apt update && apt upgrade -y
@@ -40,7 +46,8 @@ install_base_system() {
         libfontconfig1 \
         unzip \
         cron \
-        nginx 
+        nginx \
+        locales 
     
     # Включение и запуск nginx
     log_info "Настройка Nginx..."
