@@ -462,6 +462,17 @@ EOF
         return 0
     else
         log_info "Начинаем установку Hestia CP..."
+        
+        # Очищаем все следы предыдущей установки Hestia CP
+        log_info "Очистка следов предыдущей установки Hestia CP..."
+        rm -rf /usr/local/hestia
+        rm -rf /home/admin
+        rm -rf /home/*/conf
+        rm -f /etc/systemd/system/hestia.service
+        rm -f /etc/nginx/sites-available/hestia
+        rm -f /etc/nginx/sites-enabled/hestia
+        systemctl daemon-reload
+        
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
         chmod +x /tmp/hst-install.sh
         
