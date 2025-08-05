@@ -360,10 +360,39 @@ install_hestia() {
     else
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
         bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
-        systemctl start hestia
-        check_service "hestia"
-        check_error "Запуск службы Hestia"
         rm -f /tmp/hst-install.sh
+        
+        # Ожидание запуска службы
+        log_info "Ожидание запуска службы Hestia..."
+        sleep 30
+        
+        # Попытка запуска службы
+        systemctl daemon-reload
+        systemctl enable hestia
+        systemctl start hestia
+        
+        # Проверка службы с увеличенным таймаутом
+        local max_attempts=10
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            if systemctl is-active --quiet hestia; then
+                log_ok "Служба Hestia запущена успешно"
+                break
+            else
+                log_info "Попытка $attempt/$max_attempts: Служба Hestia не запущена, ожидание..."
+                sleep 10
+                attempt=$((attempt + 1))
+            fi
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+            log_err "Служба Hestia не запустилась после $max_attempts попыток"
+            log_info "Проверка статуса службы:"
+            systemctl status hestia --no-pager
+            return 1
+        fi
+        
         log_ok "Установка Hestia CP завершена"
     fi
 }
