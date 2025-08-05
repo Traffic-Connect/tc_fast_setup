@@ -358,6 +358,35 @@ install_hestia() {
         # Проверяем, установлен ли уже Hestia CP
         if [ -f "/usr/local/hestia/bin/hestia" ]; then
             log_info "Hestia CP уже установлен"
+            
+            # Проверяем, есть ли служба
+            if systemctl list-unit-files | grep -q hestia.service; then
+                log_ok "Служба Hestia CP найдена"
+            else
+                log_warn "Служба Hestia CP не найдена, создаем..."
+                # Создаем службу если её нет
+                cat > /etc/systemd/system/hestia.service << 'EOF'
+[Unit]
+Description=Hestia Control Panel
+After=network.target
+
+[Service]
+Type=forking
+User=root
+ExecStart=/usr/local/hestia/bin/hestia start
+ExecStop=/usr/local/hestia/bin/hestia stop
+ExecReload=/usr/local/hestia/bin/hestia reload
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+                systemctl daemon-reload
+                systemctl enable hestia
+                log_ok "Служба Hestia CP создана и включена"
+            fi
+            
             log_ok "Пропускаем установку Hestia CP"
         else
             log_info "Начинаем установку Hestia CP..."

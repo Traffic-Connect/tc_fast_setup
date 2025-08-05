@@ -76,10 +76,14 @@ WEB_TEMPLATE=custom
 PROXY_TEMPLATE=custom
 EOF
         log_ok "Создана базовая конфигурация Hestia CP"
-        if systemctl restart hestia; then
-            log_ok "HestiaCP перезапущена"
+        if systemctl list-unit-files | grep -q hestia.service; then
+            if systemctl restart hestia; then
+                log_ok "HestiaCP перезапущена"
+            else
+                log_warn "Не удалось перезапустить HestiaCP"
+            fi
         else
-            log_warn "Не удалось перезапустить HestiaCP"
+            log_warn "Служба Hestia CP не найдена, пропускаем перезапуск"
         fi
     fi
 } 
