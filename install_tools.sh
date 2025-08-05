@@ -22,6 +22,7 @@ log_info "Проверка подключения к интернету..."
 check_internet
 
 # Проверка существования папки tools
+log_info "Проверка папки tools в: $PROJECT_ROOT"
 if [ ! -d "$PROJECT_ROOT/tools" ]; then
     log_warn "Папка tools не найдена в $PROJECT_ROOT, пропускаем установку дополнительных компонентов"
     log_info "Дополнительные компоненты (шаблоны, BadBot, Link Manager) не будут установлены"
