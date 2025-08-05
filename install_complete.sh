@@ -358,9 +358,31 @@ install_hestia() {
     if systemctl is-active --quiet hestia; then
         log_ok "Hestia CP уже установлена и запущена."
     else
-        wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
-        bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
-        rm -f /tmp/hst-install.sh
+        # Проверяем, установлен ли уже Hestia CP
+        if [ -f "/usr/local/hestia/bin/hestia" ]; then
+            log_info "Hestia CP уже установлен, но служба не запущена"
+        else
+            log_info "Начинаем установку Hestia CP..."
+            wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
+            chmod +x /tmp/hst-install.sh
+            
+            # Установка с автоматическим подтверждением
+            echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+            
+            # Проверяем успешность установки
+            if [ -f "/usr/local/hestia/bin/hestia" ]; then
+                log_ok "Hestia CP успешно установлен"
+            else
+                log_err "Ошибка установки Hestia CP"
+                exit 1
+            fi
+            rm -f /tmp/hst-install.sh
+        fi
+        
+        # Создаем директории для логов если их нет
+        mkdir -p /var/log/nginx
+        mkdir -p /var/log/hestia
+        
         log_ok "Установка Hestia CP завершена"
     fi
 }
@@ -371,7 +393,7 @@ check_error "Установка Hestia CP"
 
 # Ожидание и проверка службы Hestia CP
 log_info "Ожидание запуска службы Hestia CP..."
-sleep 15
+sleep 30
 
 # Проверка службы Hestia CP
 if systemctl is-active --quiet hestia; then
@@ -379,12 +401,25 @@ if systemctl is-active --quiet hestia; then
 else
     log_warn "Служба Hestia CP не запущена, попытка запуска..."
     systemctl start hestia
-    sleep 5
-    if systemctl is-active --quiet hestia; then
-        log_ok "Служба Hestia CP запущена"
-    else
+    sleep 10
+    
+    # Проверяем несколько раз
+    for i in {1..3}; do
+        if systemctl is-active --quiet hestia; then
+            log_ok "Служба Hestia CP запущена"
+            break
+        else
+            log_warn "Попытка $i/3: Служба Hestia CP не запущена, ожидание..."
+            sleep 10
+        fi
+    done
+    
+    if ! systemctl is-active --quiet hestia; then
         log_err "Не удалось запустить службу Hestia CP"
-        journalctl -u hestia -n 10 --no-pager
+        log_info "Проверка статуса службы:"
+        systemctl status hestia --no-pager
+        log_info "Последние логи службы:"
+        journalctl -u hestia -n 20 --no-pager
     fi
 fi
 
@@ -925,10 +960,20 @@ setup_multiple_log_sources
 
 # Настройка прав
 echo -e "${YELLOW}=== Настройка прав доступа ===${NC}"
-chown -R root:adm "$LOG_DIR"
-chmod -R 750 "$LOG_DIR"
-setfacl -Rm u:promtail:rx "$LOG_DIR"
-setfacl -dm u:promtail:rx "$LOG_DIR"
+# Создаем директории если их нет
+mkdir -p "$LOG_DIR"
+mkdir -p /var/log/hestia
+
+# Настраиваем права доступа
+if [ -d "$LOG_DIR" ]; then
+    chown -R root:adm "$LOG_DIR" 2>/dev/null || true
+    chmod -R 750 "$LOG_DIR" 2>/dev/null || true
+    setfacl -Rm u:promtail:rx "$LOG_DIR" 2>/dev/null || true
+    setfacl -dm u:promtail:rx "$LOG_DIR" 2>/dev/null || true
+    log_ok "Права доступа к логам настроены"
+else
+    log_warn "Директория логов не существует: $LOG_DIR"
+fi
 
 # Проверка доступа
 echo -e "${BLUE}Проверка доступа к логам...${NC}"
