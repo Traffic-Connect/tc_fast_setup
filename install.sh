@@ -86,10 +86,27 @@ case "${1:-}" in
         echo "Использование:"
         echo "  $0                    # Интерактивный режим"
         echo "  $0 --full             # Полная установка"
+        echo "  $0 --continue         # Продолжение после перезапуска"
         echo "  $0 --test             # Запуск тестов"
         echo "  $0 --validate         # Проверка системы"
         echo "  $0 --help             # Показать эту справку"
         exit 0
+        ;;
+    --continue)
+        log_info "Продолжение установки после перезапуска..."
+        check_root
+        setup_logging
+        
+        # Удаляем маркер перезапуска
+        rm -f /tmp/hestia_restart_done
+        rm -f /tmp/continue_installation.sh
+        
+        # Убираем из автозапуска
+        sed -i '/continue_installation.sh/d' /etc/rc.local
+        
+        # Продолжаем с установки мониторинга
+        log_info "Продолжение с установки системы мониторинга..."
+        bash "$SCRIPT_DIR/install_complete.sh" --continue
         ;;
     --full)
         log_info "Запуск полной установки..."

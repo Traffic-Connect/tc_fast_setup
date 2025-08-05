@@ -9,6 +9,59 @@ source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # ============================================================================
+# ПРОВЕРКА РЕЖИМА ПРОДОЛЖЕНИЯ
+# ============================================================================
+
+# Проверяем, нужно ли продолжить установку после перезапуска
+if [[ "$1" == "--continue" ]]; then
+    log_info "Режим продолжения установки после перезапуска"
+    log_info "Пропускаем установку Hestia CP и базовых компонентов"
+    
+    # Продолжаем с установки системы мониторинга
+    echo -e "${YELLOW}=== Установка Grafana ===${NC}"
+    install_grafana
+    check_error "Установка Grafana"
+    
+    echo -e "${YELLOW}=== Установка Prometheus ===${NC}"
+    install_prometheus
+    check_error "Установка Prometheus"
+    
+    echo -e "${YELLOW}=== Установка Node Exporter ===${NC}"
+    install_node_exporter
+    check_error "Установка Node Exporter"
+    
+    echo -e "${YELLOW}=== Установка Pushgateway ===${NC}"
+    install_pushgateway
+    check_error "Установка Pushgateway"
+    
+    echo -e "${YELLOW}=== Установка Loki и Promtail ===${NC}"
+    install_loki
+    check_error "Установка Loki и Promtail"
+    
+    # Продолжаем с остальной настройки
+    echo -e "${YELLOW}=== Настройка мониторинга fail2ban ===${NC}"
+    setup_fail2ban_monitoring
+    check_error "Настройка мониторинга fail2ban"
+    
+    echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
+    setup_grafana
+    check_error "Настройка Grafana"
+    
+    echo -e "${YELLOW}=== Дополнительная настройка Promtail ===${NC}"
+    setup_promtail_additional
+    check_error "Дополнительная настройка Promtail"
+    
+    # Финальная проверка и завершение
+    log_info "Финальная проверка работоспособности сервисов..."
+    verify_installation
+    check_version_compatibility
+    
+    echo -e "${YELLOW}=== Установка завершена ===${NC}"
+    show_final_info
+    exit 0
+fi
+
+# ============================================================================
 # ПОШАГОВАЯ УСТАНОВКА С ПРОГРЕССОМ
 # ============================================================================
 
@@ -436,6 +489,32 @@ EOF
         mkdir -p /var/log/hestia
         
         log_ok "Установка Hestia CP завершена"
+        
+        # Проверяем, нужен ли перезапуск после установки Hestia CP
+        if [ ! -f "/tmp/hestia_restart_done" ]; then
+            log_warn "После установки Hestia CP требуется перезапуск системы"
+            log_info "Создаю маркер для продолжения установки после перезапуска..."
+            
+            # Создаем маркер и скрипт для продолжения
+            echo "$(date)" > /tmp/hestia_restart_done
+            cat > /tmp/continue_installation.sh << 'EOF'
+#!/bin/bash
+# Скрипт продолжения установки после перезапуска
+cd /root/tc_fast_setup
+echo "Продолжение установки после перезапуска..."
+bash install.sh --continue
+EOF
+            chmod +x /tmp/continue_installation.sh
+            
+            # Добавляем в автозапуск
+            echo "/tmp/continue_installation.sh" >> /etc/rc.local
+            chmod +x /etc/rc.local
+            
+            log_info "Система будет перезапущена через 10 секунд..."
+            log_info "После перезапуска установка продолжится автоматически"
+            sleep 10
+            reboot
+        fi
     fi
 }
 
