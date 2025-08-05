@@ -476,8 +476,31 @@ EOF
         log_info "Удаление пользователей и групп Hestia CP..."
         userdel -r Trafficadmin 2>/dev/null || true
         userdel -r admin 2>/dev/null || true
+        userdel -r hestiaweb 2>/dev/null || true
+        userdel -r hestiamail 2>/dev/null || true
+        userdel -r hestiadns 2>/dev/null || true
+        userdel -r hestiaftp 2>/dev/null || true
+        
         groupdel Trafficadmin 2>/dev/null || true
         groupdel admin 2>/dev/null || true
+        groupdel hestiaweb 2>/dev/null || true
+        groupdel hestiamail 2>/dev/null || true
+        groupdel hestiadns 2>/dev/null || true
+        groupdel hestiaftp 2>/dev/null || true
+        groupdel hestia-users 2>/dev/null || true
+        
+        # Удаляем все домашние директории Hestia CP
+        rm -rf /home/Trafficadmin
+        rm -rf /home/admin
+        rm -rf /home/hestiaweb
+        rm -rf /home/hestiamail
+        rm -rf /home/hestiadns
+        rm -rf /home/hestiaftp
+        
+        # Очищаем логи и временные файлы
+        rm -rf /var/log/hestia
+        rm -rf /tmp/hestia*
+        rm -rf /var/tmp/hestia*
         
         systemctl daemon-reload
         
