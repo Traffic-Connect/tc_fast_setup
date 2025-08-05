@@ -161,18 +161,41 @@ install_hestia_cp() {
     # Очистка предыдущей установки
     log_info "Очистка предыдущей установки..."
     systemctl stop hestia nginx 2>/dev/null || true
-    rm -rf /usr/local/hestia /home/admin /home/Trafficadmin
-    userdel -r Trafficadmin admin 2>/dev/null || true
+    
+    # Удаление пользователей и групп
+    log_info "Удаление существующих пользователей и групп..."
+    userdel -r "$hestia_username" 2>/dev/null || true
+    userdel -r admin 2>/dev/null || true
+    groupdel "$hestia_username" 2>/dev/null || true
+    groupdel admin 2>/dev/null || true
+    
+    # Удаление директорий
+    rm -rf /usr/local/hestia /home/admin "/home/$hestia_username" 2>/dev/null || true
     
     # Установка необходимых пакетов
     log_info "Установка необходимых пакетов..."
     apt-get update
     apt-get install -y nginx apache2-utils wget curl lsb-release
     
-    # Создание пользователя и группы
+    # Проверка и создание пользователя
+    log_info "Проверка пользователя $hestia_username..."
+    if id "$hestia_username" &>/dev/null; then
+        log_warn "Пользователь $hestia_username уже существует, удаляем..."
+        userdel -r "$hestia_username" 2>/dev/null || true
+        groupdel "$hestia_username" 2>/dev/null || true
+        rm -rf "/home/$hestia_username" 2>/dev/null || true
+    fi
+    
+    # Создание пользователя
     log_info "Создание пользователя $hestia_username..."
     useradd -m -s /bin/bash "$hestia_username"
     echo "$hestia_username:$HESTIA_PASSWORD" | chpasswd
+    
+    # Дополнительная очистка перед установкой
+    log_info "Дополнительная очистка перед установкой..."
+    pkill -f hestia 2>/dev/null || true
+    pkill -f nginx 2>/dev/null || true
+    sleep 2
     
     # Установка Hestia CP
     log_info "Установка Hestia Control Panel..."
@@ -189,7 +212,7 @@ install_hestia_cp() {
             log_info "Установщик успешно загружен"
             chmod +x /tmp/hst-install-ubuntu.sh
             log_info "Запускаем установку Hestia CP..."
-            bash /tmp/hst-install-ubuntu.sh \
+            echo "y" | bash /tmp/hst-install-ubuntu.sh \
                 --lang "$LANG" \
                 --hostname "$hestia_hostname" \
                 --username "$hestia_username" \
@@ -201,7 +224,7 @@ install_hestia_cp() {
                 --dovecot "$DOVECOT" \
                 --clamav "$CLAMAV" \
                 --spamassassin "$SPAMASSASSIN" \
-                $FORCE
+                --force
             local install_result=$?
             rm -f /tmp/hst-install-ubuntu.sh
             
@@ -235,7 +258,7 @@ install_hestia_cp() {
             log_info "Установщик успешно загружен"
             chmod +x /tmp/hst-install-ubuntu.sh
             log_info "Запускаем установку Hestia CP..."
-            bash /tmp/hst-install-ubuntu.sh \
+            echo "y" | bash /tmp/hst-install-ubuntu.sh \
                 --lang "$LANG" \
                 --hostname "$hestia_hostname" \
                 --username "$hestia_username" \
@@ -247,7 +270,7 @@ install_hestia_cp() {
                 --dovecot "$DOVECOT" \
                 --clamav "$CLAMAV" \
                 --spamassassin "$SPAMASSASSIN" \
-                $FORCE
+                --force
             local install_result=$?
             rm -f /tmp/hst-install-ubuntu.sh
             
