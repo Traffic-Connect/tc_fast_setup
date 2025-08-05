@@ -775,7 +775,7 @@ show_status() {
             echo -e "⚠️  ${YELLOW}$message${NC}"
             ;;
         "info")
-            echo -e "ℹ️  ${BLUE}$message${NC}"
+            echo -e "[i] ${BLUE}$message${NC}"
             ;;
         "loading")
             echo -e "⏳ ${BLUE}$message${NC}"
@@ -809,23 +809,26 @@ show_system_stats() {
     local mem_usage=$(free | grep Mem | awk '{printf("%.1f", $3/$2 * 100.0)}')
     local disk_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
     
-    show_table "📊 СТАТИСТИКА СИСТЕМЫ" "Компонент" "Использование" "Статус"
-    
-    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "CPU" "${cpu_usage}%" "$(get_status_icon $cpu_usage)"
-    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Память" "${mem_usage}%" "$(get_status_icon $mem_usage)"
-    printf "║ %-20s ║ %-20s ║ %-20s ║\n" "Диск" "${disk_usage}%" "$(get_status_icon $disk_usage)"
-    
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "=========================================================="
+    echo "                    СТАТИСТИКА СИСТЕМЫ"
+    echo "=========================================================="
+    echo "Компонент              Использование         Статус"
+    echo "----------------------------------------------------------"
+    printf "%-20s %-20s %-20s\n" "CPU" "${cpu_usage}%" "$(get_status_icon $cpu_usage)"
+    printf "%-20s %-20s %-20s\n" "Память" "${mem_usage}%" "$(get_status_icon $mem_usage)"
+    printf "%-20s %-20s %-20s\n" "Диск" "${disk_usage}%" "$(get_status_icon $disk_usage)"
+    echo "=========================================================="
 }
 
 get_status_icon() {
     local value=$1
     if [ $(echo "$value < 70" | bc 2>/dev/null || echo "0") -eq 1 ]; then
-        echo "✅ Норма"
+        echo "[OK] Норма"
     elif [ $(echo "$value < 90" | bc 2>/dev/null || echo "0") -eq 1 ]; then
-        echo "⚠️  Высоко"
+        echo "[!] Высоко"
     else
-        echo "❌ Критично"
+        echo "[X] Критично"
     fi
 }
 
@@ -837,19 +840,19 @@ show_notification() {
     
     case $type in
         "success")
-            local icon="✅"
+            local icon="[OK]"
             local color=$GREEN
             ;;
         "error")
-            local icon="❌"
+            local icon="[X]"
             local color=$RED
             ;;
         "warning")
-            local icon="⚠️"
+            local icon="[!]"
             local color=$YELLOW
             ;;
         "info")
-            local icon="ℹ️"
+            local icon="[i]"
             local color=$BLUE
             ;;
     esac
@@ -872,16 +875,16 @@ show_error_details() {
     local suggestion=$3
     
     echo ""
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                    ❌ ОШИБКА УСТАНОВКИ ❌                ║"
-    echo "╠══════════════════════════════════════════════════════════╣"
-    echo "║ Компонент: $component"
-    echo "║ Код ошибки: $error_code"
-    echo "║ Время: $(date)"
-    echo "╠══════════════════════════════════════════════════════════╣"
-    echo "║ 💡 РЕКОМЕНДАЦИЯ:"
-    echo "║ $suggestion"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "=========================================================="
+    echo "                    ОШИБКА УСТАНОВКИ"
+    echo "=========================================================="
+    echo "Компонент: $component"
+    echo "Код ошибки: $error_code"
+    echo "Время: $(date)"
+    echo "----------------------------------------------------------"
+    echo "РЕКОМЕНДАЦИЯ:"
+    echo "$suggestion"
+    echo "=========================================================="
     echo ""
 }
 
@@ -891,7 +894,7 @@ show_command_output() {
     local description="$2"
     
     echo ""
-    echo "🔧 Выполнение: $description"
+    echo "[*] Выполнение: $description"
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║ Команда: $command"
     echo "╠══════════════════════════════════════════════════════════╣"
