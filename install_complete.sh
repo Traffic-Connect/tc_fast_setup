@@ -410,20 +410,18 @@ log_ok "Nginx включен и запущен"
 echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
 install_hestia() {
     log_info "Установка HestiaCP..."
-    if systemctl is-active --quiet hestia; then
-        log_ok "Hestia CP уже установлена и запущена."
-    else
-        # Проверяем, установлен ли уже Hestia CP
-        if [ -f "/usr/local/hestia/bin/hestia" ]; then
-            log_info "Hestia CP уже установлен"
-            
-            # Проверяем, есть ли служба
-            if systemctl list-unit-files | grep -q hestia.service; then
-                log_ok "Служба Hestia CP найдена"
-            else
-                log_warn "Служба Hestia CP не найдена, создаем..."
-                # Создаем службу если её нет
-                cat > /etc/systemd/system/hestia.service << 'EOF'
+    
+    # Проверяем, установлен ли уже Hestia CP
+    if [ -f "/usr/local/hestia/bin/hestia" ]; then
+        log_info "Hestia CP уже установлен"
+        
+        # Проверяем, есть ли служба
+        if systemctl list-unit-files | grep -q hestia.service; then
+            log_ok "Служба Hestia CP найдена"
+        else
+            log_warn "Служба Hestia CP не найдена, создаем..."
+            # Создаем службу если её нет
+            cat > /etc/systemd/system/hestia.service << 'EOF'
 [Unit]
 Description=Hestia Control Panel
 After=network.target
@@ -440,13 +438,25 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-                systemctl daemon-reload
-                systemctl enable hestia
-                log_ok "Служба Hestia CP создана и включена"
-            fi
-            
-            log_ok "Пропускаем установку Hestia CP"
-        else
+            systemctl daemon-reload
+            systemctl enable hestia
+            log_ok "Служба Hestia CP создана и включена"
+        fi
+        
+        # Пытаемся запустить службу если она не запущена
+        if ! systemctl is-active --quiet hestia; then
+            log_info "Запускаем службу Hestia CP..."
+            systemctl start hestia
+            sleep 5
+        fi
+        
+        # Создаем директории для логов если их нет
+        mkdir -p /var/log/nginx
+        mkdir -p /var/log/hestia
+        
+        log_ok "Hestia CP уже установлен и настроен"
+        return 0
+    else
             log_info "Начинаем установку Hestia CP..."
             wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
             chmod +x /tmp/hst-install.sh
