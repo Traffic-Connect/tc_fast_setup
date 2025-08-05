@@ -474,7 +474,7 @@ set -e
 # Устанавливаем Hestia CP с фиксированными значениями
 echo "y" | bash /tmp/hst-install.sh \
     --lang 'ru' \
-    --hostname 'hostname' \
+    --hostname "$(hostname).local" \
     --username 'Trafficadmin' \
     --email 'info@hestia.ru' \
     --password "$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)" \
