@@ -360,7 +360,8 @@ install_hestia() {
     else
         # Проверяем, установлен ли уже Hestia CP
         if [ -f "/usr/local/hestia/bin/hestia" ]; then
-            log_info "Hestia CP уже установлен, но служба не запущена"
+            log_info "Hestia CP уже установлен"
+            log_ok "Пропускаем установку Hestia CP"
         else
             log_info "Начинаем установку Hestia CP..."
             wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh

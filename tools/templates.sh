@@ -67,6 +67,19 @@ install_templates() {
             log_err "Ошибка перезапуска HestiaCP"
         fi
     else
-        log_err "Файл $HESTIA_CONF не найден, пропускаю настройку PHP_TEMPLATE."
+        log_warn "Файл $HESTIA_CONF не найден, создаю базовую конфигурацию..."
+        mkdir -p "$(dirname "$HESTIA_CONF")"
+        cat > "$HESTIA_CONF" << 'EOF'
+# Hestia CP Configuration
+PHP_TEMPLATE=custom
+WEB_TEMPLATE=custom
+PROXY_TEMPLATE=custom
+EOF
+        log_ok "Создана базовая конфигурация Hestia CP"
+        if systemctl restart hestia; then
+            log_ok "HestiaCP перезапущена"
+        else
+            log_warn "Не удалось перезапустить HestiaCP"
+        fi
     fi
 } 
