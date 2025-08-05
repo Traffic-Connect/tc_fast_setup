@@ -7,9 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-# Отладочная информация
-echo "DEBUG: SCRIPT_DIR=$SCRIPT_DIR"
-echo "DEBUG: PROJECT_ROOT=$PROJECT_ROOT"
+
 
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
@@ -58,14 +56,15 @@ main() {
     # Показываем статистику системы
     show_system_stats
     
-    # Интерактивный ввод данных
-    interactive_input
+    # Использование настроек по умолчанию
+    HESTIA_USER="${DEFAULT_HESTIA_USER}"
+    EMAIL="${DEFAULT_EMAIL}"
+    PASSWORD_COMPLEXITY="high"
     
-    # Генерация паролей с выбранной сложностью
-    local password_complexity="${PASSWORD_COMPLEXITY:-high}"
+    # Генерация паролей с высокой сложностью
     show_notification "info" "Генерация безопасных паролей..." 2
-    GRAFANA_PASSWORD=$(generate_secure_password 24 "$password_complexity")
-    HESTIA_PASSWORD=$(generate_secure_password 24 "$password_complexity")
+    GRAFANA_PASSWORD=$(generate_secure_password 24 "high")
+    HESTIA_PASSWORD=$(generate_secure_password 24 "high")
     
     # Сохранение паролей
     show_notification "info" "Сохранение учетных данных..." 2
