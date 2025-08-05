@@ -14,18 +14,18 @@ source "$SCRIPT_DIR/lib/interactive.sh"
 
 main() {
     # Проверка root прав
-check_root
+    check_root
 
-# Проверка прав на выполнение
-if [ ! -x "$SCRIPT_DIR/install.sh" ]; then
-    chmod +x "$SCRIPT_DIR/install.sh"
-fi
-if [ ! -x "$SCRIPT_DIR/install_complete.sh" ]; then
-    chmod +x "$SCRIPT_DIR/install_complete.sh"
-fi
-if [ ! -x "$SCRIPT_DIR/install_tools.sh" ]; then
-    chmod +x "$SCRIPT_DIR/install_tools.sh"
-fi
+    # Проверка прав на выполнение
+    if [ ! -x "$SCRIPT_DIR/install.sh" ]; then
+        chmod +x "$SCRIPT_DIR/install.sh"
+    fi
+    if [ ! -x "$SCRIPT_DIR/install_complete.sh" ]; then
+        chmod +x "$SCRIPT_DIR/install_complete.sh"
+    fi
+    if [ ! -x "$SCRIPT_DIR/install_tools.sh" ]; then
+        chmod +x "$SCRIPT_DIR/install_tools.sh"
+    fi
     
     # Настройка логирования
     setup_logging
