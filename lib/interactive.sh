@@ -61,17 +61,11 @@ show_help_tooltip() {
 interactive_setup() {
     echo -e "${YELLOW}=== Traffic Connect Server Installation ===${NC}"
     echo ""
-    echo "Выберите режим установки:"
-    echo "1) Полная установка (все компоненты)"
-    echo "2) Выход"
+    echo "Запуск полной установки..."
     echo ""
     
-    read -p "Ваш выбор [1]: " choice
-    case $choice in
-        1) install_full ;;
-        2) exit 0 ;;
-        *) install_full ;;
-    esac
+    # Автоматически запускаем полную установку
+    install_full
 }
 
 install_full() {
