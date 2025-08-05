@@ -3,11 +3,13 @@
 # Traffic Connect Server Installation - Интерактивный режим
 # ============================================================================
 
-# Загрузка общей библиотеки
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/config.sh"
-source "$PROJECT_ROOT/lib/common.sh"
+# Проверка, что библиотеки уже загружены
+if [ -z "$PROJECT_ROOT" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+    source "$PROJECT_ROOT/config.sh"
+    source "$PROJECT_ROOT/lib/common.sh"
+fi
 
 # ============================================================================
 # ИНТЕРАКТИВНЫЕ ФУНКЦИИ
