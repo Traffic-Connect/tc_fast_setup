@@ -461,12 +461,12 @@ EOF
         log_ok "Hestia CP уже установлен и настроен"
         return 0
     else
-            log_info "Начинаем установку Hestia CP..."
-            wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
-            chmod +x /tmp/hst-install.sh
-            
-            # Создаем автоматический скрипт установки
-            cat > /tmp/hestia_auto_install.sh << 'EOF'
+        log_info "Начинаем установку Hestia CP..."
+        wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
+        chmod +x /tmp/hst-install.sh
+        
+        # Создаем автоматический скрипт установки
+        cat > /tmp/hestia_auto_install.sh << 'EOF'
 #!/bin/bash
 # Автоматическая установка Hestia CP
 set -e
@@ -489,19 +489,18 @@ echo "y" | bash /tmp/hst-install.sh \
 echo "Hestia CP установлен успешно"
 EOF
 
-            chmod +x /tmp/hestia_auto_install.sh
-            bash /tmp/hestia_auto_install.sh
-            
-            # Проверяем успешность установки
-            if [ -f "/usr/local/hestia/bin/hestia" ]; then
-                log_ok "Hestia CP успешно установлен"
-            else
-                log_err "Ошибка установки Hestia CP"
-                rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
-                exit 1
-            fi
+        chmod +x /tmp/hestia_auto_install.sh
+        bash /tmp/hestia_auto_install.sh
+        
+        # Проверяем успешность установки
+        if [ -f "/usr/local/hestia/bin/hestia" ]; then
+            log_ok "Hestia CP успешно установлен"
+        else
+            log_err "Ошибка установки Hestia CP"
             rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
+            exit 1
         fi
+        rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
         
         # Создаем директории для логов если их нет
         mkdir -p /var/log/nginx
