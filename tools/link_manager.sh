@@ -21,11 +21,13 @@ install_link_manager() {
     mkdir -p "$LINK_MANAGER_DIR"
     cd "$LINK_MANAGER_DIR" || exit
     check_internet || exit 1
-    if git clone https://github.com/Traffic-Connect/tc-link-manager-installer.git .; then
+    if git clone https://github.com/Traffic-Connect/tc-link-manager-installer.git . 2>/dev/null; then
         log_ok "Link Manager клонирован"
     else
-        log_err "Ошибка клонирования Link Manager"
-        exit 1
+        log_warn "Не удалось клонировать Link Manager (возможно, приватный репозиторий)"
+        log_info "Пропускаем установку Link Manager"
+        cd "$OLDDIR" || exit
+        return 0
     fi
     if [ -f setup.sh ]; then
         chmod +x setup.sh

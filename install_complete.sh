@@ -207,9 +207,6 @@ check_root
 # Настройка логирования
 setup_logging
 
-# Проверка совместимости
-check_compatibility
-
 # Проверка системы
 log_info "Выполнение предварительных проверок..."
 check_internet
@@ -415,7 +412,6 @@ EOF
 
 # Вызов функции установки Hestia CP
 install_hestia
-check_error "Установка Hestia CP"
 
 # Ожидание и проверка службы Hestia CP
 log_info "Ожидание запуска службы Hestia CP..."
