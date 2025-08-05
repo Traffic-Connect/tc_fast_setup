@@ -6,6 +6,11 @@
 # Загрузка общей библиотеки
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
+
+# Отладочная информация
+echo "DEBUG: SCRIPT_DIR=$SCRIPT_DIR"
+echo "DEBUG: PROJECT_ROOT=$PROJECT_ROOT"
+
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/interactive.sh"

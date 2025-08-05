@@ -4,9 +4,11 @@
 # ============================================================================
 
 # Загрузка конфигурации
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/config.sh"
+if [ -z "$PROJECT_ROOT" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+    source "$PROJECT_ROOT/config.sh"
+fi
 
 # Загрузка пользовательской конфигурации если существует
 if [ -f "$PROJECT_ROOT/$USER_CONFIG_FILE" ]; then
