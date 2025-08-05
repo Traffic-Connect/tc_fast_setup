@@ -520,43 +520,43 @@ EOF
         systemctl stop nginx 2>/dev/null || true
         systemctl disable nginx 2>/dev/null || true
         
-        # Очищаем конфигурацию Nginx
-        log_info "Очистка конфигурации Nginx..."
+        # Полная очистка конфигурации Nginx
+        log_info "Полная очистка конфигурации Nginx..."
         rm -f /etc/nginx/sites-enabled/*
         rm -f /etc/nginx/conf.d/*
         rm -f /etc/nginx/nginx.conf.backup
         rm -f /etc/nginx/nginx.conf.old
+        rm -f /etc/nginx/nginx.conf
         
-        # Создаем базовую конфигурацию Nginx
+        # Удаляем все конфигурации Nginx
+        rm -rf /etc/nginx/sites-available/*
+        rm -rf /etc/nginx/conf.d/*
+        
+        # Создаем минимальную конфигурацию для тестирования
         cat > /etc/nginx/nginx.conf << 'EOF'
 user www-data;
-worker_processes auto;
+worker_processes 1;
 pid /run/nginx.pid;
-include /etc/nginx/modules-enabled/*.conf;
 
 events {
-    worker_connections 768;
+    worker_connections 1024;
 }
 
 http {
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-    types_hash_max_size 2048;
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
     
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
     
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    sendfile on;
+    keepalive_timeout 65;
     
-    include /etc/nginx/conf.d/*.conf;
-    include /etc/nginx/sites-enabled/*;
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 444;
+    }
 }
 EOF
         
@@ -599,28 +599,34 @@ EOF
             # Запускаем Nginx после установки Hestia CP
             log_info "Запуск Nginx после установки Hestia CP..."
             
-            # Проверяем конфигурацию Nginx
-            if nginx -t 2>/dev/null; then
-                log_ok "Конфигурация Nginx корректна"
-                systemctl enable nginx
-                systemctl start nginx
-                if systemctl is-active --quiet nginx; then
-                    log_ok "Nginx успешно запущен"
-                else
-                    log_warn "Nginx не запустился, проверяем логи..."
-                    journalctl -u nginx -n 5 --no-pager
-                    log_warn "Попытка перезапуска Nginx..."
+            # Простая проверка и запуск Nginx
+            systemctl enable nginx
+            systemctl start nginx
+            
+            # Ждем немного и проверяем статус
+            sleep 5
+            if systemctl is-active --quiet nginx; then
+                log_ok "Nginx успешно запущен"
+            else
+                log_warn "Nginx не запустился автоматически"
+                log_info "Проверяем логи Nginx..."
+                journalctl -u nginx -n 10 --no-pager
+                
+                log_info "Попытка ручного запуска Nginx..."
+                if nginx -t 2>/dev/null; then
+                    log_ok "Конфигурация Nginx корректна"
                     systemctl restart nginx
                     sleep 3
                     if systemctl is-active --quiet nginx; then
                         log_ok "Nginx успешно запущен после перезапуска"
                     else
                         log_warn "Nginx не запустился, но установка Hestia CP завершена"
+                        log_info "Попробуйте запустить Nginx вручную: systemctl start nginx"
                     fi
+                else
+                    log_warn "Проблема с конфигурацией Nginx"
+                    log_info "Проверьте конфигурацию: nginx -t"
                 fi
-            else
-                log_warn "Проблема с конфигурацией Nginx, но установка Hestia CP завершена"
-                log_info "Проверьте конфигурацию Nginx вручную: nginx -t"
             fi
         else
             log_err "Ошибка установки Hestia CP"
