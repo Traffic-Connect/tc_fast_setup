@@ -471,6 +471,14 @@ EOF
         rm -f /etc/systemd/system/hestia.service
         rm -f /etc/nginx/sites-available/hestia
         rm -f /etc/nginx/sites-enabled/hestia
+        
+        # Удаляем пользователей и группы Hestia CP
+        log_info "Удаление пользователей и групп Hestia CP..."
+        userdel -r Trafficadmin 2>/dev/null || true
+        userdel -r admin 2>/dev/null || true
+        groupdel Trafficadmin 2>/dev/null || true
+        groupdel admin 2>/dev/null || true
+        
         systemctl daemon-reload
         
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
