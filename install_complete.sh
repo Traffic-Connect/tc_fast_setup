@@ -406,9 +406,9 @@ echo "Используем hostname: $VALID_HOSTNAME"
 # Устанавливаем Hestia CP
 echo "y" | bash /tmp/hst-install.sh \
     --lang 'ru' \
-    --hostname "$VALID_HOSTNAME" \
-    --username "$USERNAME" \
-    --email "$EMAIL" \
+    --hostname "server.local" \
+    --username "Traffic_admin" \
+    --email "admin@hestia.ru" \
     --password "$PASSWORD" \
     --apache no \
     --named no \

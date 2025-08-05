@@ -88,7 +88,7 @@ install_full() {
     bash "$PROJECT_ROOT/install_complete.sh"
     
     # Запуск дополнительных компонентов
-    bash "$PROJECT_ROOT/install_tools.sh"
+    bash "$(dirname "$PROJECT_ROOT")/install_tools.sh"
     
     show_final_message
 }
