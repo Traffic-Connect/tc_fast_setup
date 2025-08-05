@@ -15,7 +15,7 @@ check_root
 setup_logging
 
 # Определение корневой директории проекта
-PROJECT_ROOT="$SCRIPT_DIR"
+# PROJECT_ROOT уже определен в lib/common.sh, не переопределяем
 
 # Проверка интернета
 log_info "Проверка подключения к интернету..."

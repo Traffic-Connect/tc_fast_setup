@@ -372,41 +372,10 @@ install_hestia() {
 # Автоматическая установка Hestia CP
 set -e
 
-# Функция для создания валидного hostname
-create_valid_hostname() {
-    local current_hostname=$(hostname)
-    local ip_address=$(hostname -I | awk '{print $1}')
-    
-    # Если hostname уже валидный (содержит точку), используем его
-    if [[ "$current_hostname" == *"."* ]]; then
-        echo "$current_hostname"
-        return 0
-    fi
-    
-    # Если есть IP адрес, создаем hostname на его основе
-    if [[ -n "$ip_address" ]]; then
-        # Заменяем точки на дефисы и добавляем домен
-        local clean_ip=$(echo "$ip_address" | tr '.' '-')
-        echo "${clean_ip}.local"
-        return 0
-    fi
-    
-    # Если ничего не подходит, используем стандартный
-    echo "server.local"
-}
-
-# Получаем параметры из переменных окружения
-VALID_HOSTNAME=$(create_valid_hostname)
-USERNAME="${USERNAME:-admin}"
-EMAIL="${EMAIL:-admin@example.com}"
-PASSWORD="${PASSWORD:-admin123}"
-
-echo "Используем hostname: $VALID_HOSTNAME"
-
-# Устанавливаем Hestia CP
+# Устанавливаем Hestia CP с фиксированным валидным hostname
 echo "y" | bash /tmp/hst-install.sh \
     --lang 'ru' \
-    --hostname "$VALID_HOSTNAME" \
+    --hostname "traffic-server.local" \
     --username "Traffic_admin" \
     --email "admin@hestia.ru" \
     --password "$PASSWORD" \
