@@ -372,12 +372,13 @@ install_hestia() {
 # Автоматическая установка Hestia CP
 set -e
 
-# Устанавливаем Hestia CP с фиксированным валидным hostname
+# Устанавливаем Hestia CP с переменными окружения
+export HOSTNAME="traffic-server.local"
+export USERNAME="Traffic_admin"
+export EMAIL="admin@hestia.ru"
+
 echo "y" | bash /tmp/hst-install.sh \
     --lang 'ru' \
-    --hostname "traffic-server.local" \
-    --username "Traffic_admin" \
-    --email "admin@hestia.ru" \
     --password "$PASSWORD" \
     --apache no \
     --named no \
