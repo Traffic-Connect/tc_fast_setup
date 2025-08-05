@@ -23,8 +23,9 @@ check_internet
 
 # Проверка существования папки tools
 if [ ! -d "$PROJECT_ROOT/tools" ]; then
-    log_err "Папка tools не найдена в $PROJECT_ROOT"
-    exit 1
+    log_warn "Папка tools не найдена в $PROJECT_ROOT, пропускаем установку дополнительных компонентов"
+    log_info "Дополнительные компоненты (шаблоны, BadBot, Link Manager) не будут установлены"
+    exit 0
 fi
 
 log_info "Начинаем установку дополнительных компонентов..."

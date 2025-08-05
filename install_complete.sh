@@ -366,17 +366,54 @@ install_hestia() {
             wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
             chmod +x /tmp/hst-install.sh
             
-            # Установка с автоматическим подтверждением
-            echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+            # Создаем автоматический скрипт установки
+            cat > /tmp/hestia_auto_install.sh << 'EOF'
+#!/bin/bash
+# Автоматическая установка Hestia CP
+set -e
+
+# Получаем параметры из переменных окружения
+HOSTNAME="${HOSTNAME:-$(hostname)}"
+USERNAME="${USERNAME:-admin}"
+EMAIL="${EMAIL:-admin@example.com}"
+PASSWORD="${PASSWORD:-admin123}"
+
+# Устанавливаем Hestia CP
+echo "y" | bash /tmp/hst-install.sh \
+    --lang 'ru' \
+    --hostname "$HOSTNAME" \
+    --username "$USERNAME" \
+    --email "$EMAIL" \
+    --password "$PASSWORD" \
+    --apache no \
+    --named no \
+    --exim no \
+    --dovecot no \
+    --clamav no \
+    --spamassassin no \
+    --force
+
+echo "Hestia CP установлен успешно"
+EOF
+
+            # Устанавливаем переменные окружения и запускаем установку
+            export HOSTNAME="$HOSTNAME"
+            export USERNAME="$HESTIA_USER"
+            export EMAIL="$EMAIL"
+            export PASSWORD="$HESTIA_PASSWORD"
+            
+            chmod +x /tmp/hestia_auto_install.sh
+            bash /tmp/hestia_auto_install.sh
             
             # Проверяем успешность установки
             if [ -f "/usr/local/hestia/bin/hestia" ]; then
                 log_ok "Hestia CP успешно установлен"
             else
                 log_err "Ошибка установки Hestia CP"
+                rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
                 exit 1
             fi
-            rm -f /tmp/hst-install.sh
+            rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
         fi
         
         # Создаем директории для логов если их нет
