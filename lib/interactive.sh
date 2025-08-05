@@ -83,8 +83,12 @@ install_full() {
         exit 1
     fi
     
-    # Интерактивная настройка портов
-    interactive_port_config
+    # Использование портов по умолчанию
+    log_info "Использование портов по умолчанию:"
+    log_info "Grafana: $GRAFANA_PORT"
+    log_info "Prometheus: $PROMETHEUS_PORT"
+    log_info "Loki: $LOKI_PORT"
+    log_info "HestiaCP: $HESTIA_PORT"
     
     # Запуск основного скрипта
     bash "$PROJECT_ROOT/install_complete.sh"
