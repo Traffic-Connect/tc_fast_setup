@@ -57,6 +57,10 @@ if [[ "$1" == "--continue" ]]; then
     check_version_compatibility
     
     echo -e "${YELLOW}=== Установка завершена ===${NC}"
+    
+    # Перезапуск всех служб в режиме продолжения
+    restart_all_services
+    
     show_final_info
     exit 0
 fi
@@ -1208,6 +1212,78 @@ verify_installation
 echo -e "${YELLOW}=== Проверка совместимости версий ===${NC}"
 check_version_compatibility
 
+# Перезапуск всех установленных служб
+echo -e "${YELLOW}=== Перезапуск всех установленных служб ===${NC}"
+restart_all_services() {
+    log_info "Перезапуск всех установленных служб..."
+    
+    # Список служб для перезапуска
+    local services=(
+        "nginx"
+        "hestia"
+        "grafana-server"
+        "prometheus"
+        "loki"
+        "node_exporter"
+        "pushgateway"
+        "promtail"
+        "fail2ban"
+    )
+    
+    # Перезагрузка systemd
+    log_info "Перезагрузка systemd daemon..."
+    systemctl daemon-reload
+    
+    # Перезапуск каждой службы
+    for service in "${services[@]}"; do
+        if systemctl list-unit-files | grep -q "$service.service"; then
+            log_info "Перезапуск службы: $service"
+            if systemctl restart "$service"; then
+                log_ok "Служба $service перезапущена успешно"
+            else
+                log_warn "Не удалось перезапустить службу $service"
+            fi
+        else
+            log_info "Служба $service не найдена, пропускаем"
+        fi
+    done
+    
+    # Дополнительные службы
+    log_info "Проверка и перезапуск дополнительных служб..."
+    
+    # MySQL/MariaDB если установлен
+    if systemctl list-unit-files | grep -q "mysql.service"; then
+        log_info "Перезапуск MySQL/MariaDB..."
+        systemctl restart mysql
+    elif systemctl list-unit-files | grep -q "mariadb.service"; then
+        log_info "Перезапуск MariaDB..."
+        systemctl restart mariadb
+    fi
+    
+    # PHP-FPM если установлен
+    if systemctl list-unit-files | grep -q "php.*fpm.service"; then
+        log_info "Перезапуск PHP-FPM..."
+        systemctl restart php*-fpm
+    fi
+    
+    # Проверка статуса всех служб
+    log_info "Проверка статуса всех служб..."
+    for service in "${services[@]}"; do
+        if systemctl list-unit-files | grep -q "$service.service"; then
+            if systemctl is-active --quiet "$service"; then
+                log_ok "Служба $service активна"
+            else
+                log_warn "Служба $service неактивна"
+            fi
+        fi
+    done
+    
+    log_ok "Перезапуск всех служб завершен"
+}
+
+# Вызов функции перезапуска
+restart_all_services
+
 # 13. Завершение установки
 echo -e "${YELLOW}=== Установка завершена ===${NC}"
 echo -e "${GREEN}Доступные сервисы:${NC}"
@@ -1219,4 +1295,44 @@ echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
 echo -e "\n${GREEN}Данные для входа:${NC}"
 echo -e "Hestia CP:  $HESTIA_USER / $HESTIA_PASSWORD"
 echo -e "Grafana:    admin / $GRAFANA_PASSWORD"
-echo -e "\n${RED}ВАЖНО: Измените пароли${NC}" 
+echo -e "\n${RED}ВАЖНО: Измените пароли${NC}"
+
+# Функция показа финальной информации
+show_final_info() {
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🎉 УСТАНОВКА ЗАВЕРШЕНА! 🎉                ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 📊 СТАТИСТИКА:"
+    echo "║    • Время установки: $(date)"
+    echo "║    • Все службы перезапущены"
+    echo "║    • Система готова к работе"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 🌐 ДОСТУПНЫЕ СЕРВИСЫ:"
+    echo "║    • HestiaCP: http://$(hostname -I | awk '{print $1}'):8083"
+    echo "║    • Grafana: http://$(hostname -I | awk '{print $1}'):3000"
+    echo "║    • Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
+    echo "║    • Loki: http://$(hostname -I | awk '{print $1}'):3100"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                📋 СЛЕДУЮЩИЕ ШАГИ 📋                     ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ 1. Откройте HestiaCP и настройте домены"
+    echo "║ 2. Настройте дашборды в Grafana"
+    echo "║ 3. Проверьте метрики в Prometheus"
+    echo "║ 4. Настройте алерты и уведомления"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                🔧 ПОЛЕЗНЫЕ КОМАНДЫ 🔧                   ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ • Проверка статуса: systemctl status grafana-server"
+    echo "║ • Просмотр логов: journalctl -u grafana-server -f"
+    echo "║ • Перезапуск Hestia: systemctl restart hestia"
+    echo "║ • Проверка Nginx: nginx -t"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "💾 Пароли сохранены в: /root/credentials.txt"
+    echo "⚠️  ВАЖНО: Измените пароли после установки!"
+} 
