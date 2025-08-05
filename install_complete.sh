@@ -502,6 +502,16 @@ EOF
         groupdel hestiaftp 2>/dev/null || true
         groupdel hestia-users 2>/dev/null || true
         
+        # Дополнительная очистка - удаляем все пользователей с именами, содержащими hestia
+        log_info "Дополнительная очистка пользователей Hestia CP..."
+        for user in $(getent passwd | grep hestia | cut -d: -f1); do
+            userdel -r "$user" 2>/dev/null || true
+        done
+        
+        for group in $(getent group | grep hestia | cut -d: -f1); do
+            groupdel "$group" 2>/dev/null || true
+        done
+        
         # Удаляем все домашние директории Hestia CP
         rm -rf /home/Trafficadmin
         rm -rf /home/admin
@@ -509,6 +519,14 @@ EOF
         rm -rf /home/hestiamail
         rm -rf /home/hestiadns
         rm -rf /home/hestiaftp
+        
+        # Дополнительная очистка - удаляем все домашние директории, содержащие hestia
+        log_info "Дополнительная очистка домашних директорий Hestia CP..."
+        for dir in /home/*; do
+            if [[ -d "$dir" ]] && [[ "$(basename "$dir")" == *hestia* ]]; then
+                rm -rf "$dir"
+            fi
+        done
         
         # Очищаем логи и временные файлы
         rm -rf /var/log/hestia
