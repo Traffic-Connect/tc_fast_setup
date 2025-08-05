@@ -361,38 +361,6 @@ install_hestia() {
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
         bash /tmp/hst-install.sh --lang 'ru' --hostname "$HOSTNAME" --username "$HESTIA_USER" --email "$EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
         rm -f /tmp/hst-install.sh
-        
-        # Ожидание запуска службы
-        log_info "Ожидание запуска службы Hestia..."
-        sleep 30
-        
-        # Попытка запуска службы
-        systemctl daemon-reload
-        systemctl enable hestia
-        systemctl start hestia
-        
-        # Проверка службы с увеличенным таймаутом
-        local max_attempts=10
-        local attempt=1
-        
-        while [ $attempt -le $max_attempts ]; do
-            if systemctl is-active --quiet hestia; then
-                log_ok "Служба Hestia запущена успешно"
-                break
-            else
-                log_info "Попытка $attempt/$max_attempts: Служба Hestia не запущена, ожидание..."
-                sleep 10
-                attempt=$((attempt + 1))
-            fi
-        done
-        
-        if [ $attempt -gt $max_attempts ]; then
-            log_err "Служба Hestia не запустилась после $max_attempts попыток"
-            log_info "Проверка статуса службы:"
-            systemctl status hestia --no-pager
-            return 1
-        fi
-        
         log_ok "Установка Hestia CP завершена"
     fi
 }
@@ -401,9 +369,27 @@ install_hestia() {
 install_hestia
 check_error "Установка Hestia CP"
 
+# Ожидание и проверка службы Hestia CP
+log_info "Ожидание запуска службы Hestia CP..."
+sleep 15
+
+# Проверка службы Hestia CP
+if systemctl is-active --quiet hestia; then
+    log_ok "Служба Hestia CP запущена"
+else
+    log_warn "Служба Hestia CP не запущена, попытка запуска..."
+    systemctl start hestia
+    sleep 5
+    if systemctl is-active --quiet hestia; then
+        log_ok "Служба Hestia CP запущена"
+    else
+        log_err "Не удалось запустить службу Hestia CP"
+        journalctl -u hestia -n 10 --no-pager
+    fi
+fi
+
 # Проверка веб-интерфейса Hestia CP
 log_info "Проверка веб-интерфейса Hestia CP..."
-sleep 10
 check_service "hestia" "8083"
 
 # 4. Настройка iptables
