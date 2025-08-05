@@ -515,6 +515,11 @@ EOF
         rm -rf /tmp/hestia*
         rm -rf /var/tmp/hestia*
         
+        # Останавливаем Nginx перед установкой Hestia CP
+        log_info "Остановка Nginx перед установкой Hestia CP..."
+        systemctl stop nginx 2>/dev/null || true
+        systemctl disable nginx 2>/dev/null || true
+        
         systemctl daemon-reload
         
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh
@@ -550,6 +555,16 @@ EOF
         # Проверяем успешность установки
         if [ -f "/usr/local/hestia/bin/hestia" ]; then
             log_ok "Hestia CP успешно установлен"
+            
+            # Запускаем Nginx после установки Hestia CP
+            log_info "Запуск Nginx после установки Hestia CP..."
+            systemctl enable nginx
+            systemctl start nginx
+            if systemctl is-active --quiet nginx; then
+                log_ok "Nginx успешно запущен"
+            else
+                log_warn "Nginx не запустился, но установка Hestia CP завершена"
+            fi
         else
             log_err "Ошибка установки Hestia CP"
             rm -f /tmp/hst-install.sh /tmp/hestia_auto_install.sh
