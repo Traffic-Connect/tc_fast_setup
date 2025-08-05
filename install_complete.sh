@@ -398,8 +398,13 @@ apt update && apt upgrade -y
 apt install -y fail2ban iptables-persistent netfilter-persistent curl wget \
                software-properties-common apt-transport-https python3 \
                python3-pip python3-venv git gnupg2 ca-certificates \
-               adduser libfontconfig1 unzip
+               adduser libfontconfig1 unzip cron nginx
 check_error "Установка базовых пакетов"
+
+# Включение и запуск nginx
+systemctl enable nginx
+systemctl start nginx
+log_ok "Nginx включен и запущен"
 
 # 3. Установка Hestia CP
 echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
@@ -455,7 +460,7 @@ set -e
 # Устанавливаем Hestia CP с фиксированными значениями
 echo "y" | bash /tmp/hst-install.sh \
     --lang 'ru' \
-    --hostname "hostname" \
+    --hostname "server.local" \
     --username "Traffic_admin" \
     --email "info@hestia.ru" \
     --password "$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-16)" \
