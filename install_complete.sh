@@ -419,6 +419,19 @@ install_hestia() {
     if [ -f "/usr/local/hestia/bin/hestia" ]; then
         log_info "Hestia CP уже установлен"
         
+        # Если это режим продолжения после перезапуска, пропускаем установку
+        if [ -f "/tmp/hestia_restart_done" ]; then
+            log_info "Обнаружен режим продолжения после перезапуска"
+            log_info "Hestia CP уже установлен, пропускаем установку"
+            
+            # Создаем директории для логов если их нет
+            mkdir -p /var/log/nginx
+            mkdir -p /var/log/hestia
+            
+            log_ok "Hestia CP уже установлен и готов к работе"
+            return 0
+        fi
+        
         # Проверяем, есть ли служба
         if systemctl list-unit-files | grep -q hestia.service; then
             log_ok "Служба Hestia CP найдена"
@@ -574,6 +587,8 @@ EOF
             log_info "После перезапуска установка продолжится автоматически"
             sleep 10
             reboot
+        else
+            log_info "Маркер перезапуска уже существует, пропускаем перезапуск"
         fi
     fi
 }
