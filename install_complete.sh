@@ -463,7 +463,7 @@ echo "y" | bash /tmp/hst-install.sh \
     --hostname 'hostname' \
     --username 'Trafficadmin' \
     --email 'info@hestia.ru' \
-    --password '12345' \
+    --password "$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)" \
     --apache no \
     --named no \
     --exim no \
