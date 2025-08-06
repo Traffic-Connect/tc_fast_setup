@@ -6,9 +6,9 @@
 
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/configuration.sh"
-source "$PROJECT_ROOT/libraries/common.sh"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/scripts/configuration.sh"
+source "$PROJECT_ROOT/scripts/libraries/common.sh"
 
 install_monitoring() {
     log_info "=== ЭТАП 4: Установка системы мониторинга ==="
@@ -18,7 +18,7 @@ install_monitoring() {
     # Установка Grafana
     log_info "Установка Grafana..."
     wget "https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb" -O /tmp/grafana.deb
-    dpkg -i /tmp/grafana.deb || apt-get install -fy
+    dpkg -i /tmp/grafana.deb || DEBIAN_FRONTEND=noninteractive apt-get install -fy
     rm -f /tmp/grafana.deb
     systemctl enable grafana-server
     systemctl start grafana-server

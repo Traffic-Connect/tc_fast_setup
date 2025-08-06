@@ -6,9 +6,9 @@
 
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/configuration.sh"
-source "$PROJECT_ROOT/libraries/common.sh"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/scripts/configuration.sh"
+source "$PROJECT_ROOT/scripts/libraries/common.sh"
 
 setup_security() {
     log_info "=== ЭТАП 2: Настройка безопасности ==="
@@ -28,7 +28,7 @@ setup_security() {
     
     # Разрешение портов
     log_info "Настройка правил для портов..."
-    for port in 22 80 443 $HESTIA_PORT $GRAFANA_PORT $PROMETHEUS_PORT $LOKI_PORT $NODE_EXPORTER_PORT $PROMTAIL_PORT $FAIL2BAN_EXPORTER_PORT $PUSHGATEWAY_PORT; do
+    for port in 22 80 443 $ADMIN_PORT $GRAFANA_PORT $PROMETHEUS_PORT $LOKI_PORT $NODE_EXPORTER_PORT $PROMTAIL_PORT $FAIL2BAN_EXPORTER_PORT $PUSHGATEWAY_PORT; do
         iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
     done
     
@@ -46,6 +46,8 @@ setup_security() {
     iptables -A SYN_FLOOD -m limit --limit 10/s --limit-burst 25 -j RETURN
     iptables -A SYN_FLOOD -j DROP
     
+    # Сохранение правил iptables
+    log_info "Сохранение правил iptables..."
     netfilter-persistent save
     
     # Настройка fail2ban

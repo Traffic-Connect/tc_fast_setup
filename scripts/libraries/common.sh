@@ -7,12 +7,12 @@
 if [ -z "$PROJECT_ROOT" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-    source "$PROJECT_ROOT/configuration.sh"
+    source "$PROJECT_ROOT/scripts/configuration.sh"
 fi
 
 # Загрузка пользовательской конфигурации если существует
-if [ -f "$PROJECT_ROOT/$USER_CONFIG_FILE" ]; then
-    source "$PROJECT_ROOT/$USER_CONFIG_FILE"
+if [ -f "$PROJECT_ROOT/config.local.sh" ]; then
+    source "$PROJECT_ROOT/config.local.sh"
 fi
 
 # Глобальные переменные для отслеживания
@@ -408,8 +408,8 @@ setup_logging() {
 
 save_credentials() {
     local grafana_password=$1
-    local hestia_user=$2
-    local hestia_password=$3
+    local admin_user=$2
+    local admin_password=$3
     
     # Создаем директорию для логов
     mkdir -p "$LOG_DIR"
@@ -425,11 +425,16 @@ Grafana:
   Логин: admin
   Пароль: $grafana_password
 
-Hestia Control Panel:
-  URL: http://$(hostname -I | awk '{print $1}'):$HESTIA_PORT
-  Логин: $hestia_user
-  Пароль: $hestia_password
+Административная панель:
+  URL: http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT
+  Логин: $admin_user
+  Пароль: $admin_password
 
+EOF
+
+
+
+    cat >> "$CREDENTIALS_FILE" << EOF
 Дополнительные сервисы:
   Prometheus: http://$(hostname -I | awk '{print $1}'):$PROMETHEUS_PORT
   Loki: http://$(hostname -I | awk '{print $1}'):$LOKI_PORT

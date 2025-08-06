@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Traffic Connect Server - Единый установщик
+# Traffic Connect Server - Модульный установщик
 # ============================================================================
 
 # Определение путей
@@ -8,8 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # Загрузка конфигурации и библиотек
-source "$PROJECT_ROOT/configuration.sh"
-source "$PROJECT_ROOT/libraries/common.sh"
+source "$PROJECT_ROOT/scripts/configuration.sh"
+source "$PROJECT_ROOT/scripts/libraries/common.sh"
 
 # ============================================================================
 # ПРОВЕРКА И ИНИЦИАЛИЗАЦИЯ
@@ -44,7 +44,7 @@ install_base_packages() {
     log_info "Установка базовых пакетов..."
     
     # Использование модульного установщика базовой системы
-    source "$PROJECT_ROOT/install-stages/01-base-system.sh"
+    source "$PROJECT_ROOT/modules/base/install.sh"
     
     if install_base_system; then
         log_ok "Базовые пакеты установлены"
@@ -63,7 +63,7 @@ setup_security() {
     log_info "Настройка безопасности..."
     
     # Использование модульного установщика безопасности
-    source "$PROJECT_ROOT/install-stages/02-security.sh"
+    source "$PROJECT_ROOT/modules/security/install.sh"
     
     if setup_security; then
         log_ok "Безопасность настроена"
@@ -75,20 +75,20 @@ setup_security() {
 }
 
 # ============================================================================
-# УСТАНОВКА HESTIA CP
+# УСТАНОВКА АДМИНИСТРАТИВНОЙ ПАНЕЛИ
 # ============================================================================
 
-install_hestia() {
-    log_info "Установка Hestia Control Panel..."
+install_admin_panel() {
+    log_info "Установка административной панели..."
     
-    # Использование модульного установщика Hestia CP
-    source "$PROJECT_ROOT/install-stages/03-hestia-cp.sh"
+    # Использование модульного установщика административной панели
+    source "$PROJECT_ROOT/modules/admin/install.sh"
     
-    if install_hestia_cp; then
-        log_ok "Hestia CP установлен"
+    if install_admin_panel; then
+        log_ok "Административная панель установлена"
         return 0
     else
-        log_err "Ошибка установки Hestia CP"
+        log_err "Ошибка установки административной панели"
         return 1
     fi
 }
@@ -100,8 +100,8 @@ install_hestia() {
 install_monitoring() {
     log_info "Установка системы мониторинга..."
     
-    # Использование модульного установщика мониторинга из этапов
-    source "$PROJECT_ROOT/install-stages/04-monitoring.sh"
+    # Использование модульного установщика мониторинга
+    source "$PROJECT_ROOT/modules/monitoring/install.sh"
     
     if install_monitoring; then
         log_ok "Система мониторинга установлена"
@@ -117,10 +117,10 @@ install_monitoring() {
 # ============================================================================
 
 install_templates() {
-    log_info "Установка шаблонов HestiaCP..."
+    log_info "Установка шаблонов..."
     
     # Использование модульного установщика шаблонов
-    source "$PROJECT_ROOT/install-stages/05-templates.sh"
+    source "$PROJECT_ROOT/modules/templates/install.sh"
     
     if install_templates; then
         log_ok "Шаблоны установлены"
@@ -131,6 +131,8 @@ install_templates() {
     fi
 }
 
+
+
 # ============================================================================
 # УСТАНОВКА УТИЛИТ
 # ============================================================================
@@ -138,8 +140,8 @@ install_templates() {
 install_utils() {
     log_info "Установка дополнительных утилит..."
     
-    # Установка дополнительных утилит
-    apt install -y \
+    # Установка дополнительных утилит с неинтерактивным режимом
+    DEBIAN_FRONTEND=noninteractive apt install -y \
         htop \
         iotop \
         nethogs \
@@ -168,34 +170,37 @@ main() {
     
     # Отображение текущих настроек
     log_info "Текущие настройки:"
-    log_info "  Hestia Hostname: ${HESTIA_HOSTNAME:-$HOSTNAME}"
-    log_info "  Hestia Email: ${HESTIA_EMAIL:-$EMAIL}"
-    log_info "  Hestia Username: ${HESTIA_USERNAME:-Trafficadmin}"
-    log_info "  Hestia Language: ${HESTIA_LANG:-ru}"
-    log_info "  Apache: ${HESTIA_APACHE:-no}"
-    log_info "  BIND: ${HESTIA_NAMED:-no}"
-    log_info "  Exim: ${HESTIA_EXIM:-no}"
-    log_info "  Dovecot: ${HESTIA_DOVECOT:-no}"
+    log_info "  Admin Hostname: hostname.domain.tld"
+    log_info "  Admin Email: info@domain.tld"
+    log_info "  Admin Username: Trafficadmin"
+    log_info "  Admin Language: ru"
+    log_info "  Apache: no"
+    log_info "  BIND: no"
+    log_info "  Exim: no"
+    log_info "  Dovecot: no"
+    log_info "  ClamAV: no"
+    log_info "  SpamAssassin: no"
     
     # Выполнение проверок и инициализации
     check_and_init
     
     log_ok "Системные требования выполнены"
     
-    # Генерация паролей если не указаны
-    log_info "Проверка паролей..."
+    # Генерация случайных паролей
+    log_info "Генерация случайных паролей..."
+    
+    # Генерация пароля Grafana
     if [ -z "$GRAFANA_PASSWORD" ]; then
         GRAFANA_PASSWORD=$(generate_secure_password 24 "high")
         log_info "Пароль Grafana сгенерирован автоматически"
     fi
     
-    if [ -z "$HESTIA_PASSWORD" ]; then
-        HESTIA_PASSWORD=$(generate_secure_password 24 "high")
-        log_info "Пароль Hestia CP сгенерирован автоматически"
-    fi
+    # Генерация пароля административной панели
+    ADMIN_PASSWORD=$(generate_secure_password 16 "high")
+    log_info "Пароль административной панели сгенерирован автоматически (16 символов)"
     
     # Сохранение паролей
-    save_credentials "$GRAFANA_PASSWORD" "${HESTIA_USERNAME:-Trafficadmin}" "$HESTIA_PASSWORD"
+    save_credentials "$GRAFANA_PASSWORD" "Trafficadmin" "$ADMIN_PASSWORD"
     log_ok "Пароли сохранены"
     
     # ============================================================================
@@ -221,10 +226,10 @@ main() {
     fi
     
     # ============================================================================
-    # ЭТАП 3: HESTIA CONTROL PANEL
+    # ЭТАП 3: АДМИНИСТРАТИВНАЯ ПАНЕЛЬ
     # ============================================================================
-    log_info "=== ЭТАП 3: Установка Hestia Control Panel ==="
-    if install_hestia; then
+    log_info "=== ЭТАП 3: Установка административной панели ==="
+    if install_admin_panel; then
         log_ok "✅ Этап 3 завершен успешно"
     else
         log_err "❌ Ошибка на этапе 3"
@@ -242,9 +247,9 @@ main() {
     fi
     
     # ============================================================================
-    # ЭТАП 5: ШАБЛОНЫ HESTIA
+    # ЭТАП 5: ШАБЛОНЫ
     # ============================================================================
-    log_info "=== ЭТАП 5: Установка шаблонов Hestia ==="
+    log_info "=== ЭТАП 5: Установка шаблонов ==="
     if install_templates; then
         log_ok "✅ Этап 5 завершен успешно"
     else
@@ -267,7 +272,7 @@ main() {
     log_info "=== ФИНАЛЬНАЯ ПРОВЕРКА ==="
     
     # Проверка основных служб
-    local critical_services=("nginx" "hestia")
+    local critical_services=("nginx" "admin")
     local monitoring_services=("grafana-server" "prometheus" "loki" "node_exporter" "pushgateway" "promtail")
     local failed_critical=()
     local failed_monitoring=()
@@ -304,19 +309,21 @@ main() {
         fi
     done
     
-    # Проверка файлов Hestia
-    log_info "Проверка файлов Hestia CP..."
-    if [ -f "/usr/local/hestia/bin/hestia" ]; then
-        log_ok "✅ Hestia CP - установлен"
+
+    
+    # Проверка файлов административной панели
+    log_info "Проверка файлов административной панели..."
+    if [ -f "/usr/local/admin/bin/admin" ]; then
+        log_ok "✅ Административная панель - установлена"
     else
-        log_err "❌ Hestia CP - не установлен"
-        failed_critical+=("hestia-files")
+        log_err "❌ Административная панель - не установлена"
+        failed_critical+=("admin-files")
     fi
     
     # Проверка шаблонов
     log_info "Проверка шаблонов..."
-    if [ -d "/usr/local/hestia/data/templates/web/nginx" ]; then
-        local template_count=$(find /usr/local/hestia/data/templates/web/nginx -name "*.tpl" -o -name "*.stpl" | wc -l)
+    if [ -d "/usr/local/admin/data/templates/web/nginx" ]; then
+        local template_count=$(find /usr/local/admin/data/templates/web/nginx -name "*.tpl" -o -name "*.stpl" | wc -l)
         if [ "$template_count" -gt 0 ]; then
             log_ok "✅ Шаблоны - установлены ($template_count файлов)"
         else
@@ -345,22 +352,22 @@ main() {
     echo "║                УСТАНОВКА ЗАВЕРШЕНА! 🎉                   ║"
     echo "╠══════════════════════════════════════════════════════════╣"
     echo "║ ДОСТУПНЫЕ СЕРВИСЫ:"
-    echo "║    • HestiaCP: http://$(hostname -I | awk '{print $1}'):$HESTIA_PORT"
+    echo "║    • Админ панель: http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT"
     echo "║    • Grafana: http://$(hostname -I | awk '{print $1}'):$GRAFANA_PORT"
     echo "║    • Prometheus: http://$(hostname -I | awk '{print $1}'):$PROMETHEUS_PORT"
     echo "║    • Loki: http://$(hostname -I | awk '{print $1}'):$LOKI_PORT"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
     echo "💡 Для настройки параметров создайте файл config.local.sh:"
-echo "   cp configuration.sh config.local.sh"
-echo "   nano config.local.sh"
+    echo "   cp scripts/configuration.sh scripts/config.local.sh"
+    echo "   nano scripts/config.local.sh"
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                ДАННЫЕ ДЛЯ ВХОДА 🔑                      ║"
     echo "╠══════════════════════════════════════════════════════════╣"
-    echo "║ HestiaCP:"
-    echo "║    Логин: ${HESTIA_USERNAME:-Trafficadmin}"
-    echo "║    Пароль: $HESTIA_PASSWORD"
+    echo "║ Админ панель:"
+    echo "║    Логин: Trafficadmin"
+    echo "║    Пароль: $ADMIN_PASSWORD"
     echo "║"
     echo "║ Grafana:"
     echo "║    Логин: admin"
@@ -370,16 +377,6 @@ echo "   nano config.local.sh"
     echo "💾 Пароли сохранены в: $CREDENTIALS_FILE"
     echo "⚠️  ВАЖНО: Измените пароли после установки!"
     echo ""
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                СЛЕДУЮЩИЕ ШАГИ 📋                        ║"
-    echo "╠══════════════════════════════════════════════════════════╣"
-    echo "║ 1. Откройте HestiaCP и настройте домены"
-    echo "║ 2. Настройте дашборды в Grafana"
-    echo "║ 3. Проверьте метрики в Prometheus"
-    echo "║ 4. Настройте алерты и уведомления"
-    echo "║ 5. Измените пароли по умолчанию"
-    echo "║ 6. Настройте SSL сертификаты"
-    echo "╚══════════════════════════════════════════════════════════╝"
     
     log_ok "Установка завершена успешно!"
 }
@@ -389,12 +386,12 @@ echo "   nano config.local.sh"
 # ============================================================================
 
 # Проверка пользовательской конфигурации
-if [ -f "$PROJECT_ROOT/config.local.sh" ]; then
-    log_info "Загружена пользовательская конфигурация: config.local.sh"
-    source "$PROJECT_ROOT/config.local.sh"
+if [ -f "$PROJECT_ROOT/scripts/config.local.sh" ]; then
+    log_info "Загружена пользовательская конфигурация: scripts/config.local.sh"
+    source "$PROJECT_ROOT/scripts/config.local.sh"
 else
     log_info "Используются настройки по умолчанию"
-    log_info "Для настройки создайте файл config.local.sh на основе configuration.sh"
+    log_info "Для настройки создайте файл scripts/config.local.sh на основе scripts/configuration.sh"
 fi
 
 main 

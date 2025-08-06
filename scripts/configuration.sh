@@ -20,7 +20,7 @@ GRAFANA_VERSION="10.4.3"
 # СИСТЕМНЫЕ НАСТРОЙКИ ПО УМОЛЧАНИЮ
 # ============================================================================
 
-DEFAULT_HESTIA_USER="admin"
+DEFAULT_ADMIN_USER="admin"
 DEFAULT_EMAIL="info@domain.tld"
 REQUIRED_DISK_SPACE=2048  # 2GB в MB
 REQUIRED_MEMORY=1024      # 1GB в MB
@@ -65,7 +65,7 @@ PROMTAIL_PORT="9080"
 NODE_EXPORTER_PORT="9100"
 PUSHGATEWAY_PORT="9091"
 FAIL2BAN_EXPORTER_PORT="9191"
-HESTIA_PORT="8083"
+ADMIN_PORT="8083"
 
 # ============================================================================
 # ТАЙМАУТЫ
@@ -130,6 +130,18 @@ LOG_FORMAT="TEXT"
 LOG_RETENTION_DAYS=7
 
 # ============================================================================
+# НАСТРОЙКИ АДМИНИСТРАТИВНОЙ ПАНЕЛИ
+# ============================================================================
+
+# Настройки HestiaCP (по умолчанию отключены)
+ADMIN_APACHE="no"
+ADMIN_NAMED="no"
+ADMIN_EXIM="no"
+ADMIN_DOVECOT="no"
+ADMIN_CLAMAV="no"
+ADMIN_SPAMASSASSIN="no"
+
+# ============================================================================
 # КОНФИГУРАЦИЯ ПОЛЬЗОВАТЕЛЯ
 # ============================================================================
 
@@ -138,89 +150,3 @@ USER_CONFIG_FILE="config.local.sh"
 
 # Настройки сложности паролей
 PASSWORD_COMPLEXITY="high"  # low, medium, high
-
-# ============================================================================
-# НАСТРОЙКИ HESTIA CONTROL PANEL
-# ============================================================================
-
-# Базовые настройки системы
-HESTIA_USER="${DEFAULT_HESTIA_USER}"
-EMAIL="${DEFAULT_EMAIL}"
-HOSTNAME="hostname.domain.tld"
-
-# Настройки Hestia CP
-HESTIA_HOSTNAME="${HOSTNAME}"
-HESTIA_EMAIL="${EMAIL}"
-HESTIA_USERNAME="Trafficadmin"
-
-# Настройки установки Hestia CP
-HESTIA_LANG="ru"                            # Язык интерфейса
-HESTIA_APACHE="no"                          # Установка Apache (yes/no)
-HESTIA_NAMED="no"                           # Установка BIND (yes/no)
-HESTIA_EXIM="no"                            # Установка Exim (yes/no)
-HESTIA_DOVECOT="no"                         # Установка Dovecot (yes/no)
-HESTIA_CLAMAV="no"                          # Установка ClamAV (yes/no)
-HESTIA_SPAMASSASSIN="no"                    # Установка SpamAssassin (yes/no)
-HESTIA_FORCE="--force"                      # Принудительная установка
-
-# Алиасы для совместимости (используются в скриптах)
-LANG="${HESTIA_LANG}"
-APACHE="${HESTIA_APACHE}"
-NAMED="${HESTIA_NAMED}"
-EXIM="${HESTIA_EXIM}"
-DOVECOT="${HESTIA_DOVECOT}"
-CLAMAV="${HESTIA_CLAMAV}"
-SPAMASSASSIN="${HESTIA_SPAMASSASSIN}"
-FORCE="${HESTIA_FORCE}"
-
-# ============================================================================
-# НАСТРОЙКИ ПАРОЛЕЙ
-# ============================================================================
-# ВНИМАНИЕ: Если пароли не указаны, они будут сгенерированы автоматически
-# Для безопасности рекомендуется указать собственные пароли
-
-# HESTIA_PASSWORD="your-secure-password"   # Пароль Hestia CP
-# GRAFANA_PASSWORD="your-secure-password"  # Пароль Grafana
-
-# ============================================================================
-# ПРИМЕРЫ НАСТРОЕК
-# ============================================================================
-# Раскомментируйте и измените нужные строки для вашей конфигурации
-
-# Для продакшена:
-# HESTIA_HOSTNAME="server1.example.com"
-# HESTIA_EMAIL="admin@example.com"
-# HESTIA_USERNAME="admin"
-# HESTIA_PASSWORD="your-very-secure-password"
-# GRAFANA_PASSWORD="your-very-secure-password"
-
-# Для тестирования:
-# HESTIA_HOSTNAME="test.local"
-# HESTIA_EMAIL="test@local.dev"
-# HESTIA_USERNAME="testadmin"
-# HESTIA_APACHE="yes"
-# HESTIA_NAMED="yes"
-
-# Для разработки:
-# HESTIA_HOSTNAME="dev.example.com"
-# HESTIA_EMAIL="dev@example.com"
-# HESTIA_USERNAME="developer"
-# HESTIA_LANG="en"
-# HESTIA_APACHE="yes"
-# HESTIA_NAMED="yes"
-# HESTIA_EXIM="yes"
-# HESTIA_DOVECOT="yes"
-
-# ============================================================================
-# ИНСТРУКЦИИ ПО НАСТРОЙКЕ
-# ============================================================================
-# 1. Скопируйте этот файл в config.local.sh для пользовательских настроек:
-#    cp configuration.sh config.local.sh
-#
-# 2. Отредактируйте config.local.sh и измените нужные значения
-#
-# 3. Убедитесь, что пароли достаточно сложные (минимум 12 символов)
-#
-# 4. Проверьте, что все URL и домены корректны
-#
-# 5. Для продакшена обязательно измените пароли по умолчанию 

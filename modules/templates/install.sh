@@ -1,28 +1,28 @@
 #!/bin/bash
 
 # ============================================================================
-# ЭТАП 5: УСТАНОВКА ШАБЛОНОВ HESTIA
+# ЭТАП 5: УСТАНОВКА ШАБЛОНОВ
 # ============================================================================
 
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/configuration.sh"
-source "$PROJECT_ROOT/libraries/common.sh"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/scripts/configuration.sh"
+source "$PROJECT_ROOT/scripts/libraries/common.sh"
 
 install_templates() {
-    log_info "=== ЭТАП 5: Установка шаблонов Hestia ==="
+    log_info "=== ЭТАП 5: Установка шаблонов ==="
     
-    log_info "Установка шаблонов HestiaCP..."
+    log_info "Установка шаблонов..."
     
-    if [ ! -f "/usr/local/hestia/bin/hestia" ]; then
-        log_warn "Hestia CP не установлен, пропускаем шаблоны"
+    if [ ! -f "/usr/local/admin/bin/admin" ]; then
+        log_warn "Административная панель не установлена, пропускаем шаблоны"
         return 0
     fi
     
-    local NGINX_TEMPL_DIR="/usr/local/hestia/data/templates/web/nginx"
-    local PHPFPM_TEMPL_DIR="/usr/local/hestia/data/templates/web/php-fpm"
-    local TEMPLATES_DIR="$PROJECT_ROOT/templates"
+    local NGINX_TEMPL_DIR="/usr/local/admin/data/templates/web/nginx"
+    local PHPFPM_TEMPL_DIR="/usr/local/admin/data/templates/web/php-fpm"
+    local TEMPLATES_DIR="$PROJECT_ROOT/modules/templates"
     
     log_info "Создание директорий для шаблонов..."
     mkdir -p "$NGINX_TEMPL_DIR" "$PHPFPM_TEMPL_DIR"
@@ -77,18 +77,18 @@ install_templates() {
         done
     fi
     
-    # Настройка конфигурации Hestia CP
-    log_info "Настройка конфигурации Hestia CP..."
-    local HESTIA_CONF="/usr/local/hestia/conf/hestia.conf"
-    if [ -f "$HESTIA_CONF" ]; then
-        sed -i.bak 's/^PHP_TEMPLATE=.*/PHP_TEMPLATE=custom/' "$HESTIA_CONF"
-        sed -i.bak 's/^WEB_TEMPLATE=.*/WEB_TEMPLATE=custom/' "$HESTIA_CONF"
+    # Настройка конфигурации административной панели
+    log_info "Настройка конфигурации административной панели..."
+    local ADMIN_CONF="/usr/local/admin/conf/admin.conf"
+    if [ -f "$ADMIN_CONF" ]; then
+        sed -i.bak 's/^PHP_TEMPLATE=.*/PHP_TEMPLATE=custom/' "$ADMIN_CONF"
+        sed -i.bak 's/^WEB_TEMPLATE=.*/WEB_TEMPLATE=custom/' "$ADMIN_CONF"
     else
-        echo 'PHP_TEMPLATE=custom' >> "$HESTIA_CONF"
-        echo 'WEB_TEMPLATE=custom' >> "$HESTIA_CONF"
+        echo 'PHP_TEMPLATE=custom' >> "$ADMIN_CONF"
+        echo 'WEB_TEMPLATE=custom' >> "$ADMIN_CONF"
     fi
     
-    systemctl restart hestia
+    systemctl restart admin
     
     # Проверка установки
     log_info "Проверка установки шаблонов..."
@@ -142,9 +142,9 @@ install_templates() {
     
     # Информация о шаблонах
     log_info "Информация о шаблонах:"
-    log_info "  Nginx шаблоны: /usr/local/hestia/data/templates/web/nginx/"
-    log_info "  PHP-FPM шаблоны: /usr/local/hestia/data/templates/web/php-fpm/"
-    log_info "  Шаблоны будут доступны в веб-интерфейсе Hestia CP"
+    log_info "  Nginx шаблоны: /usr/local/admin/data/templates/web/nginx/"
+    log_info "  PHP-FPM шаблоны: /usr/local/admin/data/templates/web/php-fpm/"
+    log_info "  Шаблоны будут доступны в веб-интерфейсе административной панели"
     log_info "  Префикс шаблонов: tc- (Traffic Connect)"
     
     log_ok "✅ Этап 5 завершен"

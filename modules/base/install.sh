@@ -6,9 +6,9 @@
 
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-source "$PROJECT_ROOT/configuration.sh"
-source "$PROJECT_ROOT/libraries/common.sh"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/scripts/configuration.sh"
+source "$PROJECT_ROOT/scripts/libraries/common.sh"
 
 install_base_system() {
     log_info "=== ЭТАП 1: Установка базовой системы ==="
@@ -27,7 +27,14 @@ install_base_system() {
     
     # Установка базовых пакетов
     log_info "Установка базовых пакетов..."
-    apt install -y \
+    
+    # Предварительная настройка iptables-persistent для автоматического ответа
+    log_info "Настройка автоматического ответа для iptables-persistent..."
+    echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+    echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+    
+    # Установка пакетов с неинтерактивным режимом
+    DEBIAN_FRONTEND=noninteractive apt install -y \
         fail2ban \
         iptables-persistent \
         netfilter-persistent \
