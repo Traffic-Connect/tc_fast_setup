@@ -1657,6 +1657,202 @@ install_from_scratch() {
     fi
 }
 
+# Функция для полного удаления всего установленного
+complete_removal() {
+    echo "🗑️ ПОЛНОЕ УДАЛЕНИЕ TRAFFIC CONNECT SERVER"
+    echo "================================================"
+    echo "⚠️ ВНИМАНИЕ: Это действие удалит ВСЕ установленные компоненты!"
+    echo "Система будет возвращена к исходному состоянию."
+    echo ""
+    echo "Будет удалено:"
+    echo "  • HestiaCP (административная панель)"
+    echo "  • Grafana (мониторинг)"
+    echo "  • Prometheus (метрики)"
+    echo "  • Loki (логи)"
+    echo "  • Node Exporter"
+    echo "  • Pushgateway"
+    echo "  • Fail2ban Exporter"
+    echo "  • Все пользователи мониторинга"
+    echo "  • Все конфигурации"
+    echo "  • Все данные"
+    echo ""
+    
+    read -p "Вы уверены, что хотите продолжить? (yes/NO): " confirm
+    if [[ "$confirm" != "yes" ]]; then
+        echo "❌ Удаление отменено"
+        return 0
+    fi
+    
+    echo ""
+    echo "🔄 Начинаем полное удаление..."
+    
+    # 1. Остановка всех служб
+    echo "🛑 Остановка всех служб..."
+    local services=(
+        "grafana-server"
+        "prometheus"
+        "loki"
+        "node_exporter"
+        "pushgateway"
+        "fail2ban_exporter"
+        "promtail"
+        "admin"
+        "hestia"
+    )
+    
+    for service in "${services[@]}"; do
+        if systemctl is-active --quiet "$service" 2>/dev/null; then
+            echo "  Остановка $service..."
+            systemctl stop "$service" 2>/dev/null || true
+            systemctl disable "$service" 2>/dev/null || true
+        fi
+    done
+    
+    # 2. Удаление HestiaCP
+    echo "🗑️ Удаление HestiaCP..."
+    if [ -f "/usr/local/admin/bin/admin" ] || command -v hestia >/dev/null 2>&1; then
+        echo "  Удаление административной панели..."
+        /usr/local/admin/bin/admin delete admin 2>/dev/null || true
+        rm -rf /usr/local/admin 2>/dev/null || true
+        rm -rf /usr/local/hestia 2>/dev/null || true
+        rm -f /usr/local/bin/hestia 2>/dev/null || true
+        rm -f /usr/local/bin/admin 2>/dev/null || true
+    fi
+    
+    # 3. Удаление Grafana
+    echo "🗑️ Удаление Grafana..."
+    if dpkg -l | grep -q "^ii.*grafana"; then
+        apt remove --purge -y grafana 2>/dev/null || true
+        rm -rf /etc/grafana 2>/dev/null || true
+        rm -rf /var/lib/grafana 2>/dev/null || true
+        rm -rf /var/log/grafana 2>/dev/null || true
+    fi
+    
+    # 4. Удаление Prometheus
+    echo "🗑️ Удаление Prometheus..."
+    if [ -f "/usr/local/bin/prometheus" ]; then
+        rm -f /usr/local/bin/prometheus 2>/dev/null || true
+        rm -rf /etc/prometheus 2>/dev/null || true
+        rm -rf /var/lib/prometheus 2>/dev/null || true
+    fi
+    
+    # 5. Удаление Loki
+    echo "🗑️ Удаление Loki..."
+    if [ -f "/usr/local/bin/loki" ]; then
+        rm -f /usr/local/bin/loki 2>/dev/null || true
+        rm -rf /etc/loki 2>/dev/null || true
+        rm -rf /var/lib/loki 2>/dev/null || true
+    fi
+    
+    # 6. Удаление Node Exporter
+    echo "🗑️ Удаление Node Exporter..."
+    if [ -f "/usr/local/bin/node_exporter" ]; then
+        rm -f /usr/local/bin/node_exporter 2>/dev/null || true
+    fi
+    
+    # 7. Удаление Pushgateway
+    echo "🗑️ Удаление Pushgateway..."
+    if [ -f "/usr/local/bin/pushgateway" ]; then
+        rm -f /usr/local/bin/pushgateway 2>/dev/null || true
+    fi
+    
+    # 8. Удаление Fail2ban Exporter
+    echo "🗑️ Удаление Fail2ban Exporter..."
+    if [ -f "/usr/local/bin/fail2ban_exporter" ]; then
+        rm -f /usr/local/bin/fail2ban_exporter 2>/dev/null || true
+    fi
+    
+    # 9. Удаление пользователей мониторинга
+    echo "🗑️ Удаление пользователей мониторинга..."
+    local monitoring_users=(
+        "prometheus"
+        "grafana"
+        "loki"
+        "node_exporter"
+        "pushgateway"
+        "fail2ban_exporter"
+        "TrafficMetrics"
+        "TrafficMonitor"
+        "TrafficLogger"
+        "TrafficNode"
+        "TrafficPush"
+        "TrafficFail2Ban"
+        "TrafficAdmin"
+    )
+    
+    for user in "${monitoring_users[@]}"; do
+        if id "$user" &>/dev/null; then
+            echo "  Удаление пользователя $user..."
+            userdel -r "$user" 2>/dev/null || true
+            groupdel "$user" 2>/dev/null || true
+        fi
+    done
+    
+    # 10. Удаление конфигураций и данных
+    echo "🗑️ Удаление конфигураций и данных..."
+    rm -rf /var/log/install 2>/dev/null || true
+    rm -rf /var/cache/install 2>/dev/null || true
+    rm -rf /var/backup/install 2>/dev/null || true
+    rm -f /root/traffic_connect_credentials.txt 2>/dev/null || true
+    rm -f /root/.traffic_connect 2>/dev/null || true
+    rm -f /tmp/traffic_connect_install_stage 2>/dev/null || true
+    rm -f /tmp/hestia_installed 2>/dev/null || true
+    rm -f /tmp/reboot_required 2>/dev/null || true
+    
+    # 11. Удаление systemd служб
+    echo "🗑️ Удаление systemd служб..."
+    local service_files=(
+        "/etc/systemd/system/prometheus.service"
+        "/etc/systemd/system/loki.service"
+        "/etc/systemd/system/node_exporter.service"
+        "/etc/systemd/system/pushgateway.service"
+        "/etc/systemd/system/fail2ban_exporter.service"
+        "/etc/systemd/system/promtail.service"
+    )
+    
+    for service_file in "${service_files[@]}"; do
+        if [ -f "$service_file" ]; then
+            echo "  Удаление $service_file..."
+            rm -f "$service_file" 2>/dev/null || true
+        fi
+    done
+    
+    # 12. Очистка пакетов
+    echo "🧹 Очистка пакетов..."
+    apt autoremove -y 2>/dev/null || true
+    apt autoclean 2>/dev/null || true
+    
+    # 13. Перезагрузка systemd
+    echo "🔄 Перезагрузка systemd..."
+    systemctl daemon-reload 2>/dev/null || true
+    
+    # 14. Очистка временных файлов
+    echo "🧹 Очистка временных файлов..."
+    rm -rf /tmp/hst-install.sh 2>/dev/null || true
+    rm -rf /tmp/composer 2>/dev/null || true
+    rm -rf /tmp/grafana.deb 2>/dev/null || true
+    rm -rf /tmp/prometheus.tar.gz 2>/dev/null || true
+    
+    echo ""
+    echo "✅ ПОЛНОЕ УДАЛЕНИЕ ЗАВЕРШЕНО!"
+    echo "================================================"
+    echo "Система возвращена к исходному состоянию."
+    echo ""
+    echo "Что было удалено:"
+    echo "  ✅ HestiaCP"
+    echo "  ✅ Grafana"
+    echo "  ✅ Prometheus"
+    echo "  ✅ Loki"
+    echo "  ✅ Node Exporter"
+    echo "  ✅ Pushgateway"
+    echo "  ✅ Fail2ban Exporter"
+    echo "  ✅ Все пользователи мониторинга"
+    echo "  ✅ Все конфигурации"
+    echo "  ✅ Все данные"
+    echo ""
+    echo "🎯 Система готова для чистой установки!"
+}
+
 # Функция для показа меню
 show_menu() {
     clear
@@ -1679,6 +1875,9 @@ show_menu() {
     echo "  9) Проверить безопасность"
     echo "  10) Проверить версии"
     echo "  11) Принудительное обновление"
+    echo ""
+    echo "🗑️ УДАЛЕНИЕ:"
+    echo "  12) ПОЛНОЕ УДАЛЕНИЕ ВСЕГО (система с нуля)"
     echo ""
     echo "❌ ВЫХОД:"
     echo "  0) Выход"
@@ -1725,6 +1924,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         --install-from-scratch)
             install_from_scratch
             ;;
+        --complete-removal)
+            complete_removal
+            ;;
         --help|"")
             echo "🚀 Traffic Connect Server - УНИВЕРСАЛЬНЫЙ МЕНЕДЖЕР"
             echo "================================================"
@@ -1737,6 +1939,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             echo "  --install-hestia       Установка только HestiaCP"
             echo "  --install-monitoring   Установка только мониторинга"
             echo "  --install-from-scratch Установка с нуля (клонирование + установка)"
+            echo "  --complete-removal     ПОЛНОЕ УДАЛЕНИЕ ВСЕГО (система с нуля)"
             echo "  --fix-dpkg             Исправить блокировки dpkg"
             echo "  --fix-composer         Исправить проблемы Composer"
             echo "  --fix-ssl              Исправить SSL таймауты"
@@ -1761,7 +1964,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [ $# -eq 0 ]; then
         while true; do
             show_menu
-            read -p "Выберите действие (0-11): " choice
+            read -p "Выберите действие (0-12): " choice
             
             case $choice in
                 0)
@@ -1802,6 +2005,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                     ;;
                 11)
                     force_update
+                    ;;
+                12)
+                    complete_removal
                     ;;
                 *)
                     echo "❌ Неверный выбор. Попробуйте снова."
