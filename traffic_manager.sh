@@ -238,8 +238,8 @@ install_hestia() {
     log_step "ЭТАП 2: Установка HestiaCP"
     
     # Проверка, не установлен ли уже HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ] || command -v hestia >/dev/null 2>&1; then
-        log_warn "HestiaCP уже установлен, пропускаем установку"
+    if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ] && systemctl is-active --quiet admin 2>/dev/null; then
+        log_warn "HestiaCP уже установлен и работает, пропускаем установку"
         echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
         return 0
     fi
@@ -338,9 +338,23 @@ install_hestia() {
     log_info "Выполнение установки HestiaCP..."
     echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
     
-    if [ $? -eq 0 ]; then
+    # Проверка установки
+    sleep 5
+    if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ]; then
         log_ok "✅ HestiaCP установлен успешно"
         echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
+        
+        # Запуск службы HestiaCP
+        log_info "Запуск службы HestiaCP..."
+        systemctl enable admin 2>/dev/null || true
+        systemctl start admin 2>/dev/null || true
+        
+        # Проверка статуса
+        if systemctl is-active --quiet admin 2>/dev/null; then
+            log_ok "✅ Служба HestiaCP запущена"
+        else
+            log_warn "⚠️ Служба HestiaCP не запустилась, но установка завершена"
+        fi
     else
         log_err "❌ Ошибка установки HestiaCP"
         return 1
@@ -828,8 +842,16 @@ main_installation() {
         # Этап 1: Системные компоненты
         install_system_components
         
-        # Этап 2: Установка HestiaCP
+        # Этап 2: Установка HestiaCP (В ПЕРВУЮ ОЧЕРЕДЬ)
+        log_step "ПРИОРИТЕТНАЯ УСТАНОВКА HESTIACP"
         install_hestia
+        
+        # Проверка успешности установки HestiaCP
+        if [ ! -f "$HESTIA_INSTALLED_FLAG" ] && [ ! -f "/usr/local/admin/bin/admin" ]; then
+            log_err "❌ Критическая ошибка: HestiaCP не установлен"
+            log_err "Установка прервана. HestiaCP должен быть установлен в первую очередь."
+            exit 1
+        fi
         
         # Проверка, требуется ли перезагрузка
         if [ -f "$REBOOT_REQUIRED_FLAG" ]; then
@@ -1327,8 +1349,8 @@ install_hestia_only() {
     fi
     
     # Проверка, не установлен ли уже HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
-        echo "⚠️ HestiaCP уже установлен"
+    if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ] && systemctl is-active --quiet admin 2>/dev/null; then
+        echo "⚠️ HestiaCP уже установлен и работает"
         exit 0
     fi
     
