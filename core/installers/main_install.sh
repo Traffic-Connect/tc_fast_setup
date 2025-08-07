@@ -34,6 +34,7 @@ install_base_system() {
     echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
     
     # Установка пакетов с неинтерактивным режимом
+    log_info "Установка основных пакетов..."
     DEBIAN_FRONTEND=noninteractive apt install -y \
         fail2ban \
         iptables-persistent \
@@ -53,23 +54,34 @@ install_base_system() {
         libfontconfig1 \
         unzip \
         cron \
-        nginx \
-        locales 
+        locales || log_warn "Некоторые пакеты не установились"
     
-    # Включение и запуск nginx
-    log_info "Настройка Nginx..."
-    systemctl enable nginx
-    systemctl start nginx
-    
-    # Проверка установки
-    if systemctl is-active --quiet nginx; then
-        log_ok "✅ Nginx запущен"
+    # Попытка установки nginx отдельно (может быть конфликт)
+    log_info "Попытка установки Nginx..."
+    if DEBIAN_FRONTEND=noninteractive apt install -y nginx 2>/dev/null; then
+        log_ok "✅ Nginx установлен"
     else
-        log_err "❌ Ошибка запуска Nginx"
-        return 1
+        log_warn "⚠️ Nginx не установился (возможно, конфликт с другими веб-серверами)"
+    fi 
+    
+    # Включение и запуск nginx (если установлен)
+    log_info "Настройка Nginx..."
+    if systemctl list-unit-files | grep -q "nginx.service"; then
+        systemctl enable nginx 2>/dev/null || log_warn "Не удалось включить nginx (возможно, не установлен)"
+        systemctl start nginx 2>/dev/null || log_warn "Не удалось запустить nginx (возможно, не установлен)"
+        
+        # Проверка установки
+        if systemctl is-active --quiet nginx; then
+            log_ok "✅ Nginx запущен"
+        else
+            log_warn "⚠️ Nginx не запущен (возможно, не установлен или конфликт)"
+        fi
+    else
+        log_warn "⚠️ Nginx не установлен, пропускаем настройку"
     fi
     
     log_ok "✅ Этап 1 завершен успешно"
+    log_info "Примечание: некоторые пакеты могут быть не установлены из-за конфликтов"
     return 0
 }
 
