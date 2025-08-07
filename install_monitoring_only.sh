@@ -14,6 +14,48 @@ source "$PROJECT_ROOT/core/configs/configuration.sh"
 source "$PROJECT_ROOT/core/utils/common.sh"
 
 # ============================================================================
+# ГЕНЕРАЦИЯ БЕЗОПАСНЫХ ПАРОЛЕЙ
+# ============================================================================
+
+generate_secure_passwords() {
+    log_info "Генерация безопасных паролей..."
+    
+    # Загружаем политику безопасности
+    if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
+        source "$PROJECT_ROOT/system/security/security_policy.sh"
+        
+        # Генерируем все необходимые пароли согласно политике безопасности
+        ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        GRAFANA_ADMIN_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        PROMETHEUS_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        LOKI_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        NODE_EXPORTER_PASSWORD=$(generate_compliant_password $MIN_PASSWORD_LENGTH "medium")
+        PUSHGATEWAY_PASSWORD=$(generate_compliant_password $MIN_PASSWORD_LENGTH "medium")
+        FAIL2BAN_EXPORTER_PASSWORD=$(generate_compliant_password $MIN_PASSWORD_LENGTH "medium")
+        
+        log_info "Сгенерирован пароль для root SSH"
+        log_info "Сгенерирован пароль для Grafana"
+        log_info "Сгенерирован пароль для Prometheus"
+        log_info "Сгенерирован пароль для Loki"
+        log_info "Сгенерирован пароль для Node Exporter"
+        log_info "Сгенерирован пароль для Pushgateway"
+        log_info "Сгенерирован пароль для Fail2ban Exporter"
+        
+        log_ok "Все пароли сгенерированы успешно"
+    else
+        log_warn "Файл политики безопасности не найден, используем базовые пароли"
+        # Генерируем базовые пароли
+        ROOT_SSH_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        PROMETHEUS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        LOKI_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        NODE_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
+        PUSHGATEWAY_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
+        FAIL2BAN_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
+    fi
+}
+
+# ============================================================================
 # ПРОВЕРКА И ИНИЦИАЛИЗАЦИЯ
 # ============================================================================
 
@@ -39,6 +81,172 @@ check_and_init() {
     
     # Генерация безопасных паролей
     generate_secure_passwords
+}
+
+# ============================================================================
+# УСТАНОВКА БАЗОВЫХ ПАКЕТОВ
+# ============================================================================
+
+install_base_packages() {
+    log_info "Установка базовых пакетов..."
+    
+    # Использование модульного установщика базовой системы
+    source "$PROJECT_ROOT/core/installers/main_install.sh"
+    
+    if install_base_system; then
+        log_ok "Базовые пакеты установлены"
+        return 0
+    else
+        log_err "Ошибка установки базовых пакетов"
+        return 1
+    fi
+}
+
+# ============================================================================
+# НАСТРОЙКА БЕЗОПАСНОСТИ
+# ============================================================================
+
+setup_security() {
+    log_info "Настройка безопасности..."
+    
+    # Использование модульного установщика безопасности
+    source "$PROJECT_ROOT/system/security/security_install.sh"
+    
+    if setup_security; then
+        log_ok "Безопасность настроена"
+        return 0
+    else
+        log_err "Ошибка настройки безопасности"
+        return 1
+    fi
+}
+
+# ============================================================================
+# УСТАНОВКА СИСТЕМЫ МОНИТОРИНГА
+# ============================================================================
+
+install_monitoring() {
+    log_info "Установка системы мониторинга..."
+    
+    # Использование модульного установщика мониторинга
+    source "$PROJECT_ROOT/system/monitoring/monitoring_install.sh"
+    
+    if install_monitoring; then
+        log_ok "Система мониторинга установлена"
+        return 0
+    else
+        log_err "Ошибка установки системы мониторинга"
+        return 1
+    fi
+}
+
+# ============================================================================
+# НАСТРОЙКА ВЕБ-СЕРВЕРА
+# ============================================================================
+
+setup_web_server() {
+    log_info "Настройка веб-сервера..."
+    
+    # Использование модульного установщика шаблонов
+    source "$PROJECT_ROOT/web/templates/templates_install.sh"
+    
+    if install_templates; then
+        log_ok "Веб-сервер настроен"
+        return 0
+    else
+        log_err "Ошибка настройки веб-сервера"
+        return 1
+    fi
+}
+
+# ============================================================================
+# АУДИТ БЕЗОПАСНОСТИ
+# ============================================================================
+
+perform_security_audit() {
+    log_info "Выполнение аудита безопасности..."
+    
+    local security_score=0
+    local issues=()
+    
+    # Проверка SSH конфигурации
+    if [ -f /etc/ssh/sshd_config ]; then
+        if grep -q "PermitRootLogin no" /etc/ssh/sshd_config; then
+            security_score=$((security_score + 20))
+            log_ok "SSH root доступ отключен"
+        else
+            issues+=("SSH root доступ включен")
+        fi
+        
+        if grep -q "PasswordAuthentication no" /etc/ssh/sshd_config; then
+            security_score=$((security_score + 15))
+            log_ok "SSH аутентификация по паролю отключена"
+        else
+            issues+=("SSH аутентификация по паролю включена")
+        fi
+    fi
+    
+    # Проверка файрвола
+    if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+        security_score=$((security_score + 20))
+        log_ok "UFW активен"
+    else
+        issues+=("UFW не активен")
+    fi
+    
+    # Проверка fail2ban
+    if systemctl is-active --quiet fail2ban; then
+        security_score=$((security_score + 15))
+        log_ok "Fail2ban активен"
+    else
+        issues+=("Fail2ban не активен")
+    fi
+    
+    # Проверка обновлений системы
+    if [ -f /var/lib/apt/periodic/update-success-stamp ]; then
+        local last_update=$(stat -c %Y /var/lib/apt/periodic/update-success-stamp)
+        local current_time=$(date +%s)
+        local days_since_update=$(((current_time - last_update) / 86400))
+        
+        if [ $days_since_update -le 7 ]; then
+            security_score=$((security_score + 10))
+            log_ok "Система обновлена"
+        else
+            issues+=("Система не обновлялась $days_since_update дней")
+        fi
+    fi
+    
+    # Вывод результатов
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                АУДИТ БЕЗОПАСНОСТИ 🔒                   ║"
+    echo "╠══════════════════════════════════════════════════════════╣"
+    echo "║ Общий балл: $security_score/100"
+    
+    if [ $security_score -ge 80 ]; then
+        echo "║ Статус: ОТЛИЧНО ✅"
+    elif [ $security_score -ge 60 ]; then
+        echo "║ Статус: ХОРОШО ✅"
+    elif [ $security_score -ge 40 ]; then
+        echo "║ Статус: СРЕДНЕ ⚠️"
+    else
+        echo "║ Статус: ТРЕБУЕТ ВНИМАНИЯ ❌"
+    fi
+    
+    if [ ${#issues[@]} -gt 0 ]; then
+        echo "║"
+        echo "║ Рекомендации по безопасности:"
+        for issue in "${issues[@]}"; do
+            echo "║   • $issue"
+        done
+    fi
+    
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    if [ $security_score -lt 60 ]; then
+        log_warn "Рекомендуется улучшить безопасность системы"
+    fi
 }
 
 # ============================================================================

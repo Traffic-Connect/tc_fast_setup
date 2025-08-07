@@ -211,11 +211,11 @@ EOF
     done
     
     # Проверка пароля Grafana
-    if [ -z "$GRAFANA_PASSWORD" ]; then
+    if [ -z "$GRAFANA_ADMIN_PASSWORD" ]; then
         log_err "Пароль Grafana не установлен"
         return 1
     fi
-    grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
+    grafana-cli admin reset-admin-password "$GRAFANA_ADMIN_PASSWORD"
     
     until curl -u admin:admin -X POST -H "Content-Type: application/json" \
       -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:'"$PROMETHEUS_PORT"'","access":"proxy"}' \
@@ -238,7 +238,7 @@ EOF
     
     if [ ${#failed_services[@]} -eq 0 ]; then
         log_ok "✅ Все службы мониторинга работают"
-        echo "Grafana пароль: $GRAFANA_PASSWORD"
+        echo "Grafana пароль: $GRAFANA_ADMIN_PASSWORD"
     else
         log_warn "⚠️  Проблемы со службами: ${failed_services[*]}"
     fi

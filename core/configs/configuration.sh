@@ -10,7 +10,7 @@
 # ВЕРСИИ КОМПОНЕНТОВ
 # ============================================================================
 
-PROMETHEUS_VERSION="2.47.0"
+PROMETHEUS_VERSION="2.48.0"
 NODE_EXPORTER_VERSION="1.6.1"
 PUSHGATEWAY_VERSION="1.6.1"
 LOKI_VERSION="2.9.1"
@@ -66,15 +66,6 @@ NODE_EXPORTER_PORT="9100"
 PUSHGATEWAY_PORT="9091"
 FAIL2BAN_EXPORTER_PORT="9191"
 ADMIN_PORT="8083"
-
-# ============================================================================
-# ВЕРСИИ КОМПОНЕНТОВ МОНИТОРИНГА
-# ============================================================================
-
-GRAFANA_VERSION="10.4.3"
-PROMETHEUS_VERSION="2.48.0"
-NODE_EXPORTER_VERSION="1.6.1"
-LOKI_VERSION="2.9.0"
 
 # ============================================================================
 # ТАЙМАУТЫ
@@ -143,7 +134,7 @@ LOG_RETENTION_DAYS=7
 # ============================================================================
 
 # HestiaCP настройки
-HESTIA_USERNAME="TrafficAdmin$(openssl rand -hex 4)"
+HESTIA_USERNAME="TrafficAdmin"
 HESTIA_EMAIL="info@domain.tld"
 HESTIA_PASSWORD=""
 HESTIA_HOSTNAME="$(hostname -f 2>/dev/null || echo 'hostname.domain.tld')"
@@ -175,7 +166,6 @@ PUSHGATEWAY_PASSWORD=""
 FAIL2BAN_EXPORTER_PASSWORD=""
 
 # Логины согласно политике безопасности
-HESTIA_USERNAME="TrafficAdmin"
 GRAFANA_USERNAME="TrafficMetrics"
 PROMETHEUS_USERNAME="TrafficMonitor"
 LOKI_USERNAME="TrafficLogger"

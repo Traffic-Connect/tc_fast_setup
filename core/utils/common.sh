@@ -12,7 +12,7 @@ fi
 
 # Загрузка пользовательской конфигурации если существует
 if [ -f "$PROJECT_ROOT/config.local.sh" ]; then
-    source "$PROJECT_ROOT/web/configs/config.local.sh"
+    source "$PROJECT_ROOT/config.local.sh"
 fi
 
 # Глобальные переменные для отслеживания

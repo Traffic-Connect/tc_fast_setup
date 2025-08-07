@@ -3,6 +3,10 @@
 # Traffic Connect Server - Проверка безопасности
 # ============================================================================
 
+# Определение путей
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -230,8 +234,8 @@ check_suspicious_activity() {
         local score=0
         
         # Загружаем политику безопасности
-        if [ -f "$(dirname "$(dirname "$(dirname "$0")")")/system/security/security_policy.sh" ]; then
-            source "$(dirname "$(dirname "$(dirname "$0")")")/system/security/security_policy.sh"
+        if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
+            source "$PROJECT_ROOT/system/security/security_policy.sh"
             
             # Проверяем наличие пользователей мониторинга
             local monitoring_users=("TrafficMetrics" "TrafficMonitor" "TrafficLogger" "TrafficNode" "TrafficPush" "TrafficFail2Ban")
