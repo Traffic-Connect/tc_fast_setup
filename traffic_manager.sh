@@ -269,6 +269,38 @@ install_hestia() {
         groupdel "$HESTIA_USERNAME" 2>/dev/null || true
     fi
     
+    # Полная очистка HestiaCP перед установкой
+    log_info "Полная очистка HestiaCP перед установкой..."
+    
+    # Остановка служб HestiaCP
+    systemctl stop admin 2>/dev/null || true
+    systemctl stop hestia 2>/dev/null || true
+    systemctl disable admin 2>/dev/null || true
+    systemctl disable hestia 2>/dev/null || true
+    
+    # Удаление директорий HestiaCP
+    rm -rf /usr/local/hestia 2>/dev/null || true
+    rm -rf /usr/local/admin 2>/dev/null || true
+    rm -f /usr/local/bin/hestia 2>/dev/null || true
+    rm -f /usr/local/bin/admin 2>/dev/null || true
+    
+    # Удаление логов установки
+    rm -f /usr/local/hestia/install.log 2>/dev/null || true
+    rm -f /tmp/hestia_installed 2>/dev/null || true
+    
+    # Удаление systemd служб HestiaCP
+    rm -f /etc/systemd/system/admin.service 2>/dev/null || true
+    rm -f /etc/systemd/system/hestia.service 2>/dev/null || true
+    rm -f /lib/systemd/system/admin.service 2>/dev/null || true
+    rm -f /lib/systemd/system/hestia.service 2>/dev/null || true
+    
+    # Удаление пользователей HestiaCP
+    if id "$HESTIA_USERNAME" &>/dev/null; then
+        log_info "Удаление пользователя $HESTIA_USERNAME..."
+        userdel -r "$HESTIA_USERNAME" 2>/dev/null || true
+        groupdel "$HESTIA_USERNAME" 2>/dev/null || true
+    fi
+    
     # Проверка конфликтующих пакетов
     log_info "Проверка конфликтующих пакетов..."
     local conflicting_packages=()
@@ -299,6 +331,10 @@ install_hestia() {
         apt autoremove -y
         log_info "Конфликтующие пакеты удалены"
     fi
+    
+    # Перезагрузка systemd после очистки
+    systemctl daemon-reload 2>/dev/null || true
+    log_info "Очистка HestiaCP завершена"
     
     # Настройка SSL для решения проблем с таймаутом
     fix_ssl_timeouts
