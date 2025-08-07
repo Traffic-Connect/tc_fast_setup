@@ -311,12 +311,37 @@ install_hestia() {
     # Удаление пользователей HestiaCP
     if id "$HESTIA_USERNAME" &>/dev/null; then
         log_info "Удаление пользователя $HESTIA_USERNAME..."
-        userdel -r "$HESTIA_USERNAME" 2>/dev/null || true
+        
+        # Принудительная остановка всех процессов пользователя
+        pkill -u "$HESTIA_USERNAME" 2>/dev/null || true
+        sleep 2
+        
+        # Принудительное удаление пользователя
+        userdel -f -r "$HESTIA_USERNAME" 2>/dev/null || true
         groupdel "$HESTIA_USERNAME" 2>/dev/null || true
+        
+        # Дополнительная очистка если пользователь все еще существует
+        if id "$HESTIA_USERNAME" &>/dev/null; then
+            log_warn "Пользователь $HESTIA_USERNAME все еще существует, принудительное удаление..."
+            sed -i "/^$HESTIA_USERNAME:/d" /etc/passwd 2>/dev/null || true
+            sed -i "/^$HESTIA_USERNAME:/d" /etc/shadow 2>/dev/null || true
+            sed -i "/^$HESTIA_USERNAME:/d" /etc/group 2>/dev/null || true
+            sed -i "/^$HESTIA_USERNAME:/d" /etc/gshadow 2>/dev/null || true
+        fi
     fi
     
     # Полная очистка домашней директории пользователя
     log_info "Полная очистка домашней директории пользователя..."
+    
+    # Принудительная остановка всех процессов пользователя
+    pkill -u "$HESTIA_USERNAME" 2>/dev/null || true
+    sleep 2
+    
+    # Удаление всех файлов и директорий пользователя
+    find "/home/$HESTIA_USERNAME" -type f -delete 2>/dev/null || true
+    find "/home/$HESTIA_USERNAME" -type d -empty -delete 2>/dev/null || true
+    
+    # Принудительное удаление директорий
     rm -rf "/home/$HESTIA_USERNAME" 2>/dev/null || true
     rm -rf "/home/$HESTIA_USERNAME/conf" 2>/dev/null || true
     rm -rf "/home/$HESTIA_USERNAME/web" 2>/dev/null || true
@@ -329,6 +354,13 @@ install_hestia() {
     rm -rf "/home/$HESTIA_USERNAME/.ssh" 2>/dev/null || true
     rm -rf "/home/$HESTIA_USERNAME/.npm" 2>/dev/null || true
     rm -rf "/home/$HESTIA_USERNAME/.wp-cli" 2>/dev/null || true
+    
+    # Проверка и принудительное удаление если директория все еще существует
+    if [ -d "/home/$HESTIA_USERNAME" ]; then
+        log_warn "Директория /home/$HESTIA_USERNAME все еще существует, принудительное удаление..."
+        chmod -R 777 "/home/$HESTIA_USERNAME" 2>/dev/null || true
+        rm -rf "/home/$HESTIA_USERNAME" 2>/dev/null || true
+    fi
     
     # Удаление доменных директорий
     log_info "Очистка доменных директорий..."
