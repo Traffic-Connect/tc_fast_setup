@@ -150,17 +150,8 @@ setup_ssh_security() {
         log_info "Создана резервная копия SSH конфигурации"
     fi
     
-    # Проверка наличия пароля для root
-    if [ -z "$ROOT_SSH_PASSWORD" ]; then
-        log_err "Пароль для root не сгенерирован. Запустите generate_secure_passwords()"
-        return 1
-    fi
-    
-    log_info "Используется сгенерированный пароль для root"
-    
-    # Установка пароля для root
-    echo "root:$ROOT_SSH_PASSWORD" | chpasswd
-    log_ok "Пароль для root установлен"
+    # Пароль root не трогаем - оставляем как есть
+    log_info "Пароль root оставляем без изменений"
     
     # Настройка SSH конфигурации
     log_info "Настройка SSH конфигурации..."

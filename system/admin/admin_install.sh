@@ -14,7 +14,7 @@ install_admin_panel() {
     log_info "=== ЭТАП 3: Установка административной панели ==="
     
     # Проверка, не установлен ли уже HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null; then
+    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
         log_warn "HestiaCP уже установлен, пропускаем установку"
         log_info "Информация о существующей установке HestiaCP:"
         log_info "  URL: https://$(hostname -I | awk '{print $1}'):8083"

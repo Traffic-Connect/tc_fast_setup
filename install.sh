@@ -53,7 +53,7 @@ generate_secure_passwords() {
     # Проверяем, доступны ли функции генерации паролей
     if type generate_compliant_password >/dev/null 2>&1; then
         # Генерируем все необходимые пароли согласно политике безопасности
-        ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        # ROOT_SSH_PASSWORD не генерируем - оставляем как есть
         HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
         GRAFANA_ADMIN_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
         PROMETHEUS_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
@@ -62,7 +62,7 @@ generate_secure_passwords() {
         PUSHGATEWAY_PASSWORD=$(generate_compliant_password $MIN_PASSWORD_LENGTH "medium")
         FAIL2BAN_EXPORTER_PASSWORD=$(generate_compliant_password $MIN_PASSWORD_LENGTH "medium")
         
-        log_info "Сгенерирован пароль для root SSH"
+        log_info "Пароль root оставляем без изменений"
         log_info "Сгенерирован пароль для HestiaCP"
         log_info "Сгенерирован пароль для Grafana"
         log_info "Сгенерирован пароль для Prometheus"
@@ -75,7 +75,7 @@ generate_secure_passwords() {
     else
         log_warn "Функции политики безопасности недоступны, используем базовые пароли"
         # Генерируем базовые пароли
-        ROOT_SSH_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        # ROOT_SSH_PASSWORD не генерируем - оставляем как есть
         HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
         GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
         PROMETHEUS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
