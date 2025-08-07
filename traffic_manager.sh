@@ -247,7 +247,7 @@ install_hestia() {
     log_step "ЭТАП 2: Установка HestiaCP"
     
     # Проверка, не установлен ли уже HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
+    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ] || command -v hestia >/dev/null 2>&1; then
         log_warn "HestiaCP уже установлен, пропускаем установку"
         echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
         return 0
@@ -259,15 +259,16 @@ install_hestia() {
         return 0
     fi
     
-    # Генерация пароля для HestiaCP
-    log_info "Генерация пароля для HestiaCP..."
-    if type generate_compliant_password >/dev/null 2>&1; then
-        HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
-    else
-        HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+    # Используем уже сгенерированный пароль для HestiaCP
+    if [ -z "$HESTIA_PASSWORD" ]; then
+        log_info "Генерация пароля для HestiaCP..."
+        if type generate_compliant_password >/dev/null 2>&1; then
+            HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        else
+            HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        fi
+        export HESTIA_PASSWORD
     fi
-    
-    export HESTIA_PASSWORD
     log_info "Пароль для HestiaCP: $HESTIA_PASSWORD"
     
     # Проверка и удаление существующего пользователя если конфликт
@@ -503,6 +504,53 @@ setup_web_server() {
 }
 
 # ============================================================================
+# ФУНКЦИИ ГЕНЕРАЦИИ ПАРОЛЕЙ
+# ============================================================================
+
+generate_secure_passwords() {
+    log_info "Генерация безопасных паролей для всех сервисов..."
+    
+    # Загружаем политику безопасности если доступна
+    if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
+        source "$PROJECT_ROOT/system/security/security_policy.sh"
+    fi
+    
+    # Генерация паролей для всех сервисов
+    if type generate_compliant_password >/dev/null 2>&1; then
+        HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        GRAFANA_ADMIN_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        PROMETHEUS_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        LOKI_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        NODE_EXPORTER_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        PUSHGATEWAY_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        FAIL2BAN_EXPORTER_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+    else
+        # Fallback генерация паролей
+        HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        PROMETHEUS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        LOKI_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        NODE_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        PUSHGATEWAY_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        FAIL2BAN_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        ROOT_SSH_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+    fi
+    
+    # Экспорт переменных
+    export HESTIA_PASSWORD
+    export GRAFANA_ADMIN_PASSWORD
+    export PROMETHEUS_PASSWORD
+    export LOKI_PASSWORD
+    export NODE_EXPORTER_PASSWORD
+    export PUSHGATEWAY_PASSWORD
+    export FAIL2BAN_EXPORTER_PASSWORD
+    export ROOT_SSH_PASSWORD
+    
+    log_ok "Пароли сгенерированы успешно"
+}
+
+# ============================================================================
 # ФУНКЦИИ ОТОБРАЖЕНИЯ ИНФОРМАЦИИ
 # ============================================================================
 
@@ -513,24 +561,53 @@ show_access_credentials() {
     
     local server_ip=$(hostname -I | awk '{print $1}')
     
-    if [ -f "/usr/local/admin/bin/admin" ]; then
+    # HestiaCP
+    if [ -f "/usr/local/admin/bin/admin" ] || command -v hestia >/dev/null 2>&1 || systemctl is-active --quiet admin 2>/dev/null; then
         echo "✅ HestiaCP: https://$server_ip:8083"
         echo "   Пользователь: $HESTIA_USERNAME"
         echo "   Пароль: $HESTIA_PASSWORD"
     fi
     
-    if systemctl is-active --quiet grafana-server; then
+    # Grafana
+    if systemctl is-active --quiet grafana-server 2>/dev/null; then
         echo "✅ Grafana: http://$server_ip:3000"
         echo "   Пользователь: admin"
         echo "   Пароль: $GRAFANA_ADMIN_PASSWORD"
     fi
     
-    if systemctl is-active --quiet prometheus; then
+    # Prometheus
+    if systemctl is-active --quiet prometheus 2>/dev/null; then
         echo "✅ Prometheus: http://$server_ip:9090"
+        echo "   Пользователь: $PROMETHEUS_USERNAME"
+        echo "   Пароль: $PROMETHEUS_PASSWORD"
     fi
     
-    if systemctl is-active --quiet loki; then
+    # Loki
+    if systemctl is-active --quiet loki 2>/dev/null; then
         echo "✅ Loki: http://$server_ip:3100"
+        echo "   Пользователь: $LOKI_USERNAME"
+        echo "   Пароль: $LOKI_PASSWORD"
+    fi
+    
+    # Node Exporter
+    if systemctl is-active --quiet node_exporter 2>/dev/null; then
+        echo "✅ Node Exporter: http://$server_ip:9100"
+        echo "   Пользователь: $NODE_EXPORTER_USERNAME"
+        echo "   Пароль: $NODE_EXPORTER_PASSWORD"
+    fi
+    
+    # Pushgateway
+    if systemctl is-active --quiet pushgateway 2>/dev/null; then
+        echo "✅ Pushgateway: http://$server_ip:9091"
+        echo "   Пользователь: $PUSHGATEWAY_USERNAME"
+        echo "   Пароль: $PUSHGATEWAY_PASSWORD"
+    fi
+    
+    # Fail2ban Exporter
+    if systemctl is-active --quiet fail2ban_exporter 2>/dev/null; then
+        echo "✅ Fail2ban Exporter: http://$server_ip:9191"
+        echo "   Пользователь: $FAIL2BAN_EXPORTER_USERNAME"
+        echo "   Пароль: $FAIL2BAN_EXPORTER_PASSWORD"
     fi
     
     echo ""
@@ -560,8 +637,234 @@ show_all_passwords() {
         echo "Loki: $LOKI_PASSWORD"
     fi
     
-    echo "Root SSH: не изменялся"
+    if [ -n "$NODE_EXPORTER_PASSWORD" ]; then
+        echo "Node Exporter: $NODE_EXPORTER_PASSWORD"
+    fi
+    
+    if [ -n "$PUSHGATEWAY_PASSWORD" ]; then
+        echo "Pushgateway: $PUSHGATEWAY_PASSWORD"
+    fi
+    
+    if [ -n "$FAIL2BAN_EXPORTER_PASSWORD" ]; then
+        echo "Fail2ban Exporter: $FAIL2BAN_EXPORTER_PASSWORD"
+    fi
+    
+    if [ -n "$ROOT_SSH_PASSWORD" ]; then
+        echo "Root SSH: $ROOT_SSH_PASSWORD"
+    else
+        echo "Root SSH: не изменялся"
+    fi
     echo ""
+}
+
+# ============================================================================
+# ФУНКЦИЯ ПЕРЕЗАПУСКА СЛУЖБ
+# ============================================================================
+
+restart_all_services() {
+    log_info "Перезапуск всех установленных служб..."
+    
+    # Список служб для перезапуска
+    local services=(
+        "ssh"
+        "sshd"
+        "fail2ban"
+        "ufw"
+        "docker"
+        "nginx"
+        "apache2"
+        "admin"
+        "hestia"
+        "grafana-server"
+        "prometheus"
+        "loki"
+        "node_exporter"
+        "pushgateway"
+        "fail2ban_exporter"
+        "promtail"
+    )
+    
+    for service in "${services[@]}"; do
+        if systemctl list-unit-files | grep -q "^$service.service"; then
+            if systemctl is-active --quiet "$service" 2>/dev/null; then
+                log_info "Перезапуск службы: $service"
+                systemctl restart "$service" 2>/dev/null || log_warn "Не удалось перезапустить $service"
+            elif systemctl is-enabled --quiet "$service" 2>/dev/null; then
+                log_info "Запуск службы: $service"
+                systemctl start "$service" 2>/dev/null || log_warn "Не удалось запустить $service"
+            fi
+        fi
+    done
+    
+    # Специальная обработка для HestiaCP
+    if command -v hestia >/dev/null 2>&1; then
+        log_info "Перезапуск HestiaCP..."
+        systemctl restart admin 2>/dev/null || systemctl restart hestia 2>/dev/null || log_warn "Не удалось перезапустить HestiaCP"
+    fi
+    
+    # Проверка статуса основных служб
+    log_info "Проверка статуса основных служб..."
+    local critical_services=("ssh" "sshd" "fail2ban" "admin" "hestia")
+    
+    for service in "${critical_services[@]}"; do
+        if systemctl list-unit-files | grep -q "^$service.service"; then
+            if systemctl is-active --quiet "$service" 2>/dev/null; then
+                log_ok "✅ $service работает"
+            else
+                log_warn "⚠️ $service не работает"
+            fi
+        fi
+    done
+    
+    log_ok "Перезапуск служб завершен"
+}
+
+# Функция для сохранения всех паролей в файл
+save_all_credentials() {
+    local credentials_file="/root/traffic_connect_credentials.txt"
+    local server_ip=$(hostname -I | awk '{print $1}')
+    
+    log_info "Сохранение всех учетных данных в файл: $credentials_file"
+    
+    cat > "$credentials_file" << EOF
+===============================================
+TRAFFIC CONNECT SERVER - УЧЕТНЫЕ ДАННЫЕ
+===============================================
+Дата создания: $(date)
+IP сервера: $server_ip
+===============================================
+
+🌐 ДОСТУПЫ К СЕРВИСАМ:
+===============================================
+
+EOF
+
+    # HestiaCP
+    if [ -f "/usr/local/admin/bin/admin" ] || command -v hestia >/dev/null 2>&1 || systemctl is-active --quiet admin 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ HestiaCP: https://$server_ip:8083
+   Пользователь: $HESTIA_USERNAME
+   Пароль: $HESTIA_PASSWORD
+
+EOF
+    fi
+
+    # Grafana
+    if systemctl is-active --quiet grafana-server 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Grafana: http://$server_ip:3000
+   Пользователь: admin
+   Пароль: $GRAFANA_ADMIN_PASSWORD
+
+EOF
+    fi
+
+    # Prometheus
+    if systemctl is-active --quiet prometheus 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Prometheus: http://$server_ip:9090
+   Пользователь: $PROMETHEUS_USERNAME
+   Пароль: $PROMETHEUS_PASSWORD
+
+EOF
+    fi
+
+    # Loki
+    if systemctl is-active --quiet loki 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Loki: http://$server_ip:3100
+   Пользователь: $LOKI_USERNAME
+   Пароль: $LOKI_PASSWORD
+
+EOF
+    fi
+
+    # Node Exporter
+    if systemctl is-active --quiet node_exporter 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Node Exporter: http://$server_ip:9100
+   Пользователь: $NODE_EXPORTER_USERNAME
+   Пароль: $NODE_EXPORTER_PASSWORD
+
+EOF
+    fi
+
+    # Pushgateway
+    if systemctl is-active --quiet pushgateway 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Pushgateway: http://$server_ip:9091
+   Пользователь: $PUSHGATEWAY_USERNAME
+   Пароль: $PUSHGATEWAY_PASSWORD
+
+EOF
+    fi
+
+    # Fail2ban Exporter
+    if systemctl is-active --quiet fail2ban_exporter 2>/dev/null; then
+        cat >> "$credentials_file" << EOF
+✅ Fail2ban Exporter: http://$server_ip:9191
+   Пользователь: $FAIL2BAN_EXPORTER_USERNAME
+   Пароль: $FAIL2BAN_EXPORTER_PASSWORD
+
+EOF
+    fi
+
+    cat >> "$credentials_file" << EOF
+🔧 SSH доступ:
+   ssh root@$server_ip
+
+🔐 ВСЕ СГЕНЕРИРОВАННЫЕ ПАРОЛИ:
+===============================================
+EOF
+
+    if [ -n "$HESTIA_PASSWORD" ]; then
+        echo "HestiaCP: $HESTIA_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$GRAFANA_ADMIN_PASSWORD" ]; then
+        echo "Grafana Admin: $GRAFANA_ADMIN_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$PROMETHEUS_PASSWORD" ]; then
+        echo "Prometheus: $PROMETHEUS_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$LOKI_PASSWORD" ]; then
+        echo "Loki: $LOKI_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$NODE_EXPORTER_PASSWORD" ]; then
+        echo "Node Exporter: $NODE_EXPORTER_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$PUSHGATEWAY_PASSWORD" ]; then
+        echo "Pushgateway: $PUSHGATEWAY_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$FAIL2BAN_EXPORTER_PASSWORD" ]; then
+        echo "Fail2ban Exporter: $FAIL2BAN_EXPORTER_PASSWORD" >> "$credentials_file"
+    fi
+    
+    if [ -n "$ROOT_SSH_PASSWORD" ]; then
+        echo "Root SSH: $ROOT_SSH_PASSWORD" >> "$credentials_file"
+    else
+        echo "Root SSH: не изменялся" >> "$credentials_file"
+    fi
+
+    cat >> "$credentials_file" << EOF
+
+📚 Документация: $PROJECT_ROOT/docs/
+🔧 Конфигурация: $PROJECT_ROOT/web/configs/
+🛡️ Безопасность: $PROJECT_ROOT/system/security/
+
+===============================================
+EOF
+
+    # Устанавливаем безопасные права доступа
+    chmod 600 "$credentials_file"
+    
+    log_ok "Учетные данные сохранены в файл: $credentials_file"
+    echo "📄 Все учетные данные сохранены в: $credentials_file"
 }
 
 # ============================================================================
@@ -612,6 +915,9 @@ main_installation() {
         # Полная установка с нуля
         log_info "Начинаем полную установку с нуля..."
         
+        # Генерация паролей для всех сервисов
+        generate_secure_passwords
+        
         # Этап 1: Системные компоненты
         install_system_components
         
@@ -643,11 +949,18 @@ main_installation() {
     echo "================================================"
     log_ok "УСТАНОВКА TRAFFIC CONNECT SERVER ЗАВЕРШЕНА УСПЕШНО!"
     
+    # Перезапуск всех служб
+    log_info "Перезапуск всех установленных служб..."
+    restart_all_services
+    
     # Отображение данных для входа
     show_access_credentials
     
     # Отображение всех сгенерированных паролей
     show_all_passwords
+    
+    # Сохранение всех учетных данных в файл
+    save_all_credentials
     
     echo "📚 Документация: $PROJECT_ROOT/docs/"
     echo "🔧 Конфигурация: $PROJECT_ROOT/web/configs/"
