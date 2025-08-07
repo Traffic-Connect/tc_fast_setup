@@ -18,6 +18,60 @@ if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
 fi
 
 # ============================================================================
+# ПРОВЕРКА СИСТЕМЫ
+# ============================================================================
+
+# Проверка операционной системы
+check_system_compatibility() {
+    log_info "Проверка совместимости системы..."
+    
+    # Проверка на macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        log_err "❌ Traffic Connect Server не поддерживается на macOS"
+        log_err "Система предназначена для Linux серверов"
+        log_info "Поддерживаемые системы:"
+        log_info "  - Ubuntu 20.04/22.04"
+        log_info "  - Debian 11/12"
+        log_info "  - CentOS 8/Rocky Linux 8"
+        log_info ""
+        log_info "Для разработки и тестирования используйте:"
+        log_info "  - Docker контейнер с Ubuntu"
+        log_info "  - Виртуальную машину с Linux"
+        log_info "  - Облачный сервер (VPS)"
+        return 1
+    fi
+    
+    # Проверка на Windows
+    if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+        log_err "❌ Traffic Connect Server не поддерживается на Windows"
+        log_err "Система предназначена для Linux серверов"
+        return 1
+    fi
+    
+    # Проверка дистрибутива Linux
+    if ! command -v apt &> /dev/null; then
+        log_warn "⚠️ Система не поддерживает apt package manager"
+        log_warn "Некоторые компоненты могут работать некорректно"
+        log_info "Рекомендуется использовать дистрибутивы на основе Debian/Ubuntu"
+    fi
+    
+    # Проверка прав root
+    if [[ $EUID -ne 0 ]]; then
+        log_err "❌ Скрипт должен выполняться с правами root"
+        log_info "Запустите: sudo $0"
+        return 1
+    fi
+    
+    log_ok "✅ Система совместима"
+    return 0
+}
+
+# Выполнение проверки системы
+if ! check_system_compatibility; then
+    exit 1
+fi
+
+# ============================================================================
 # ФУНКЦИЯ ИМПОРТА МОДУЛЕЙ
 # ============================================================================
 

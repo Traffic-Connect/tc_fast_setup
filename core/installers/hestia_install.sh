@@ -56,6 +56,24 @@ download_hestia_installer() {
 install_hestia() {
     log_step "Установка HestiaCP"
     
+    # Проверка операционной системы
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        log_err "❌ HestiaCP не поддерживается на macOS"
+        log_err "Hestia Control Panel предназначен только для Linux серверов (Ubuntu/Debian)"
+        log_info "Для установки HestiaCP используйте:"
+        log_info "  - Ubuntu 20.04/22.04"
+        log_info "  - Debian 11/12"
+        log_info "  - CentOS 8/Rocky Linux 8"
+        return 1
+    fi
+    
+    # Проверка дистрибутива Linux
+    if ! command -v apt &> /dev/null; then
+        log_err "❌ HestiaCP требует дистрибутив на основе Debian/Ubuntu"
+        log_err "Текущая система не поддерживает apt package manager"
+        return 1
+    fi
+    
     # Проверка, не установлен ли уже HestiaCP
     if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ] && is_service_active "admin"; then
         log_warn "HestiaCP уже установлен и работает, пропускаем установку"
