@@ -414,6 +414,17 @@ install_hestia() {
                             rm -rf "/home/$HESTIA_USERNAME/conf/web/$HESTIA_HOSTNAME" 2>/dev/null || true
                             log_info "Проблемный домен очищен"
                         fi
+                        
+                        # Исправление прав доступа для cron
+                        log_info "Исправление прав доступа для cron..."
+                        chown hestiaweb:hestiaweb /var/spool/cron/crontabs/hestiaweb 2>/dev/null || true
+                        chmod 600 /var/spool/cron/crontabs/hestiaweb 2>/dev/null || true
+                        
+                        # Установка sendmail если отсутствует
+                        if ! command -v sendmail &> /dev/null; then
+                            log_info "Установка sendmail..."
+                            apt install -y postfix 2>/dev/null || true
+                        fi
                     else
                         log_err "❌ Ошибка установки HestiaCP"
                         return 1
