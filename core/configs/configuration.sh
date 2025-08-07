@@ -134,10 +134,10 @@ LOG_RETENTION_DAYS=7
 # ============================================================================
 
 # HestiaCP настройки
-HESTIA_USERNAME="Trafficadmin"
+HESTIA_USERNAME="Trafficadmin$(date +%s | tail -c 4)"
 HESTIA_EMAIL="info@domain.tld"
 HESTIA_PASSWORD="Qw12312312345"
-HESTIA_HOSTNAME="hostname.domain.tld"
+HESTIA_HOSTNAME="$(hostname -f 2>/dev/null || echo 'hostname.domain.tld')"
 
 # ============================================================================
 # КОНФИГУРАЦИЯ ПОЛЬЗОВАТЕЛЯ

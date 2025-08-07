@@ -24,6 +24,13 @@ install_admin_panel() {
     
     log_info "Установка HestiaCP..."
     
+    # Проверка и удаление существующего пользователя если конфликт
+    if id "$HESTIA_USERNAME" &>/dev/null; then
+        log_warn "Пользователь $HESTIA_USERNAME уже существует, удаляем..."
+        userdel -r "$HESTIA_USERNAME" 2>/dev/null || true
+        groupdel "$HESTIA_USERNAME" 2>/dev/null || true
+    fi
+    
     # Загрузка скрипта установки HestiaCP
     log_info "Загрузка установщика HestiaCP..."
     wget -O /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
