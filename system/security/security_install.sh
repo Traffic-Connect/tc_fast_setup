@@ -10,7 +10,10 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 source "$PROJECT_ROOT/core/configs/configuration.sh"
 source "$PROJECT_ROOT/core/utils/common.sh"
 
-setup_security() {
+# Загрузка политики безопасности
+source "$PROJECT_ROOT/system/security/security_policy.sh"
+
+setup_security_from_module() {
     log_info "=== ЭТАП 2: Настройка безопасности ==="
     
     log_info "Настройка безопасности с политикой TrafficConnect..."
@@ -37,7 +40,7 @@ setup_security() {
     # Разрешение портов с ограничениями
     log_info "Настройка правил для портов..."
     
-    # SSH - только с определенных IP (настройте под ваши нужд
+    # SSH - только с определенных IP (настройте под ваши нужды)
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 4 --name SSH -j DROP
     iptables -A INPUT -p tcp --dport 22 -j ACCEPT
@@ -341,5 +344,14 @@ EOF
 
 # Запуск если скрипт вызван напрямую
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    setup_security
-fi 
+    setup_security_from_module
+fi
+
+# ============================================================================
+# ОБРАТНАЯ СОВМЕСТИМОСТЬ
+# ============================================================================
+
+# Функция для обратной совместимости
+setup_security() {
+    setup_security_from_module
+} 

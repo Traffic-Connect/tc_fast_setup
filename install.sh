@@ -35,6 +35,9 @@ check_and_init() {
     # Проверка места на диске
     check_disk_space
     
+    # Загружаем security_install.sh для доступа к функциям политики безопасности
+    source "$PROJECT_ROOT/system/security/security_install.sh"
+    
     # Генерация безопасных паролей
     generate_secure_passwords
 }
@@ -46,10 +49,9 @@ check_and_init() {
 generate_secure_passwords() {
     log_info "Генерация безопасных паролей..."
     
-    # Загружаем политику безопасности
-    if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
-        source "$PROJECT_ROOT/system/security/security_policy.sh"
-        
+    # Политика безопасности уже загружена в security_install.sh
+    # Проверяем, доступны ли функции генерации паролей
+    if command -v generate_compliant_password >/dev/null 2>&1; then
         # Генерируем все необходимые пароли согласно политике безопасности
         ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
         HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
@@ -71,7 +73,7 @@ generate_secure_passwords() {
         
         log_ok "Все пароли сгенерированы успешно"
     else
-        log_warn "Файл политики безопасности не найден, используем базовые пароли"
+        log_warn "Функции политики безопасности недоступны, используем базовые пароли"
         # Генерируем базовые пароли
         ROOT_SSH_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
         HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
@@ -287,10 +289,9 @@ install_base_packages() {
 setup_security() {
     log_info "Настройка безопасности..."
     
-    # Использование модульного установщика безопасности
-    source "$PROJECT_ROOT/system/security/security_install.sh"
-    
-    if setup_security; then
+    # security_install.sh уже загружен в check_and_init
+    # Вызываем функцию из security_install.sh
+    if setup_security_from_module; then
         log_ok "Безопасность настроена"
         return 0
     else
@@ -394,7 +395,7 @@ main_installation() {
     fi
     
     # Настройка веб-сервера
-    if ! install_templates; then
+    if ! setup_web_server; then
         log_warn "Предупреждение: не удалось настроить веб-сервер"
     fi
     

@@ -83,7 +83,7 @@ install_admin_panel() {
             
             # Перезапускаем настройку безопасности
             source "$PROJECT_ROOT/system/security/security_install.sh"
-            setup_security
+            setup_security_from_module
             
             log_ok "✅ Настройки безопасности восстановлены"
         fi
