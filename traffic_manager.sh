@@ -200,16 +200,12 @@ install_system_components() {
     # Добавление репозитория Node.js
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
     
-    # Добавление репозитория Docker
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
     # Обновление списков пакетов
     apt update
     
     # 1.4 Установка дополнительных пакетов
     log_info "Установка дополнительных пакетов..."
-    local additional_packages="nodejs docker-ce docker-ce-cli containerd.io docker-compose-plugin htop iotop nethogs"
+    local additional_packages="nodejs htop iotop nethogs"
     
     if ! apt install -y $additional_packages; then
         log_warn "Ошибка установки дополнительных пакетов, исправляем..."
@@ -217,12 +213,7 @@ install_system_components() {
         apt install -y $additional_packages
     fi
     
-    # 1.5 Настройка Docker
-    log_info "Настройка Docker..."
-    systemctl enable docker
-    systemctl start docker
-    
-    # 1.6 Создание системных пользователей
+    # 1.5 Создание системных пользователей
     log_info "Создание системных пользователей..."
     
     # Создание пользователей для мониторинга
@@ -670,7 +661,6 @@ restart_all_services() {
         "sshd"
         "fail2ban"
         "ufw"
-        "docker"
         "nginx"
         "apache2"
         "admin"
@@ -1292,7 +1282,6 @@ check_version() {
     echo "  • Nginx: $(nginx -v 2>&1 || echo 'Не установлен')"
     echo "  • PHP: $(php -v 2>/dev/null | head -1 || echo 'Не установлен')"
     echo "  • MySQL: $(mysql --version 2>/dev/null || echo 'Не установлен')"
-    echo "  • Docker: $(docker --version 2>/dev/null || echo 'Не установлен')"
     echo "  • Node.js: $(node --version 2>/dev/null || echo 'Не установлен')"
     
     echo "📊 Системные версии:"
