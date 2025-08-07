@@ -59,16 +59,96 @@ install_admin_panel() {
         log_info "Конфликтующие пакеты удалены"
     fi
     
-    # Загрузка скрипта установки HestiaCP
-    log_info "Загрузка установщика HestiaCP..."
-    wget -O /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
+    # Настройка SSL для решения проблем с таймаутом
+    log_info "Настройка SSL для стабильной установки..."
     
-    if [ ! -f "/tmp/hst-install.sh" ]; then
-        log_err "❌ Не удалось загрузить установщик HestiaCP"
-        return 1
+    # Увеличиваем таймауты для SSL соединений
+    export CURL_CONNECT_TIMEOUT=60
+    export CURL_TIMEOUT=300
+    export WGET_TIMEOUT=300
+    
+    # Настройка SSL для wget
+    echo "check_certificate = off" >> ~/.wgetrc 2>/dev/null || true
+    echo "timeout = 300" >> ~/.wgetrc 2>/dev/null || true
+    
+    # Настройка SSL для curl
+    echo "connect-timeout = 60" >> ~/.curlrc 2>/dev/null || true
+    echo "max-time = 300" >> ~/.curlrc 2>/dev/null || true
+    
+    # Загрузка скрипта установки HestiaCP с повторными попытками
+    log_info "Загрузка установщика HestiaCP..."
+    local download_success=false
+    
+    for attempt in 1 2 3; do
+        log_info "Попытка загрузки $attempt/3..."
+        
+        if wget --timeout=300 --tries=3 --no-check-certificate -O /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh; then
+            download_success=true
+            break
+        else
+            log_warn "Попытка $attempt не удалась, повторяем..."
+            sleep 5
+        fi
+    done
+    
+    if [ ! -f "/tmp/hst-install.sh" ] || [ "$download_success" = false ]; then
+        log_err "❌ Не удалось загрузить установщик HestiaCP после 3 попыток"
+        log_info "Пробуем альтернативный метод загрузки..."
+        
+        # Альтернативная загрузка через curl
+        if curl --connect-timeout 60 --max-time 300 -k -o /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh; then
+            log_ok "✅ Установщик загружен через curl"
+        else
+            log_err "❌ Не удалось загрузить установщик HestiaCP"
+            return 1
+        fi
     fi
     
     chmod +x /tmp/hst-install.sh
+    
+    # Предварительная установка Composer с правильными настройками SSL
+    log_info "Предварительная настройка Composer для решения проблем SSL..."
+    
+    # Создаем временный скрипт для установки Composer
+    cat > /tmp/install_composer.sh << 'EOF'
+#!/bin/bash
+# Установка Composer с правильными настройками SSL
+
+# Настройка переменных окружения для SSL
+export COMPOSER_HOME=/tmp/composer
+export COMPOSER_CACHE_DIR=/tmp/composer/cache
+export COMPOSER_TIMEOUT=300
+
+# Создание директорий
+mkdir -p "$COMPOSER_HOME" "$COMPOSER_CACHE_DIR"
+
+# Загрузка Composer с повторными попытками
+for attempt in 1 2 3; do
+    echo "Попытка загрузки Composer $attempt/3..."
+    
+    if curl --connect-timeout 60 --max-time 300 -k -o /tmp/composer.phar https://getcomposer.org/download/2.8.10/composer.phar; then
+        echo "Composer загружен успешно"
+        chmod +x /tmp/composer.phar
+        mv /tmp/composer.phar /usr/local/bin/composer
+        break
+    else
+        echo "Попытка $attempt не удалась, повторяем..."
+        sleep 5
+    fi
+done
+
+# Проверка установки
+if [ -f "/usr/local/bin/composer" ]; then
+    echo "✅ Composer установлен успешно"
+    composer --version
+else
+    echo "❌ Не удалось установить Composer"
+    exit 1
+fi
+EOF
+
+    chmod +x /tmp/install_composer.sh
+    bash /tmp/install_composer.sh
     
     # Выполнение установки HestiaCP
     log_info "Выполнение установки HestiaCP..."
@@ -91,6 +171,11 @@ install_admin_panel() {
         log_err "❌ Ошибка установки HestiaCP"
         return 1
     fi
+    
+    # Очистка временных файлов
+    log_info "Очистка временных файлов..."
+    rm -f /tmp/hst-install.sh /tmp/install_composer.sh
+    rm -rf /tmp/composer
     
     # Информация о доступе к HestiaCP
     log_info "Информация о доступе к HestiaCP:"
