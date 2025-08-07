@@ -2,6 +2,21 @@
 
 Модульная система быстрой установки и настройки Traffic Control сервера.
 
+## 🚨 ВАЖНО: Если видите ошибки установки
+
+Если вы видите ошибки типа:
+- `Username or Group allready exists`
+- `install_monitoring_system: command not found`
+- `setup_web_templates: command not found`
+
+**Выполните на сервере:**
+```bash
+cd ~/tc_fast_setup
+chmod +x force_update.sh
+./force_update.sh
+./install.sh
+```
+
 ## 📁 Структура проекта
 
 ```
@@ -37,16 +52,26 @@
 ├── 📁 docs/                          # 📚 Документация
 │   └── 📁 examples/                  # 💡 Примеры
 │       └── 📄 test_security.sh       # Тест безопасности
-└── 📄 install.sh                     # 🚀 Точка входа
+├── 📄 install.sh                     # 🚀 Точка входа
+├── 📄 force_update.sh                # 🔄 Принудительное обновление
+└── 📄 QUICK_FIX.md                   # 🚨 Быстрое исправление
 ```
 
 ## 🚀 Быстрый старт
 
-### Установка системы
+### Первая установка
 ```bash
 git clone https://github.com/Traffic-Connect/tc_fast_setup.git
 cd tc_fast_setup
 chmod +x install.sh
+./install.sh
+```
+
+### Если есть проблемы с установкой
+```bash
+cd ~/tc_fast_setup
+chmod +x force_update.sh
+./force_update.sh
 ./install.sh
 ```
 
@@ -82,8 +107,8 @@ chmod +x install.sh
 ## 📊 Статистика
 
 - **Папок:** 10
-- **Файлов:** 19
-- **Скриптов:** 11
+- **Файлов:** 22
+- **Скриптов:** 12
 - **Шаблонов:** 7
 - **Тестов:** 1
 
