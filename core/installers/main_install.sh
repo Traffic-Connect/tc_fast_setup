@@ -65,11 +65,16 @@ install_base_system() {
         locales || log_warn "Некоторые пакеты не установились"
     
     # Попытка установки nginx отдельно (может быть конфликт)
-    log_info "Попытка установки Nginx..."
-    if DEBIAN_FRONTEND=noninteractive apt install -y nginx 2>/dev/null; then
-        log_ok "✅ Nginx установлен"
+    # Проверяем, не установлен ли уже HestiaCP
+    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
+        log_warn "⚠️ HestiaCP уже установлен, пропускаем установку Nginx"
     else
-        log_warn "⚠️ Nginx не установился (возможно, конфликт с другими веб-серверами)"
+        log_info "Попытка установки Nginx..."
+        if DEBIAN_FRONTEND=noninteractive apt install -y nginx 2>/dev/null; then
+            log_ok "✅ Nginx установлен"
+        else
+            log_warn "⚠️ Nginx не установился (возможно, конфликт с другими веб-серверами)"
+        fi
     fi 
     
     # Включение и запуск nginx (если установлен)
