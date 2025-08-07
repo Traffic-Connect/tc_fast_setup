@@ -13,15 +13,61 @@ source "$PROJECT_ROOT/core/utils/common.sh"
 install_monitoring() {
     log_info "=== ЭТАП 4: Установка системы мониторинга ==="
     
+    # Проверка, не установлены ли уже компоненты мониторинга
+    if systemctl is-active --quiet grafana-server 2>/dev/null || systemctl is-active --quiet prometheus 2>/dev/null; then
+        log_warn "Компоненты мониторинга уже установлены, пропускаем установку"
+        log_info "Статус компонентов мониторинга:"
+        if systemctl is-active --quiet grafana-server 2>/dev/null; then
+            log_info "  Grafana: ✅ Работает"
+        fi
+        if systemctl is-active --quiet prometheus 2>/dev/null; then
+            log_info "  Prometheus: ✅ Работает"
+        fi
+        if systemctl is-active --quiet node_exporter 2>/dev/null; then
+            log_info "  Node Exporter: ✅ Работает"
+        fi
+        log_ok "✅ Этап 4 завершен успешно (пропущен)"
+        return 0
+    fi
+    
     log_info "Установка системы мониторинга..."
     
     # Установка Grafana
     log_info "Установка Grafana..."
+    
+    # Установка зависимостей
+    log_info "Установка зависимостей Grafana..."
+    DEBIAN_FRONTEND=noninteractive apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y musl
+    
+    # Загрузка и установка Grafana
     wget "https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb" -O /tmp/grafana.deb
     dpkg -i /tmp/grafana.deb || DEBIAN_FRONTEND=noninteractive apt-get install -fy
     rm -f /tmp/grafana.deb
+    
+    # Настройка пароля администратора Grafana
+    log_info "Настройка пароля администратора Grafana..."
+    cat > /etc/grafana/grafana.ini <<EOF
+[security]
+admin_user = admin
+admin_password = ${GRAFANA_ADMIN_PASSWORD:-admin123}
+
+[server]
+http_port = ${GRAFANA_PORT:-3000}
+EOF
+    
+    # Запуск Grafana
     systemctl enable grafana-server
     systemctl start grafana-server
+    
+    # Проверка запуска
+    sleep 5
+    if systemctl is-active --quiet grafana-server; then
+        log_ok "✅ Grafana запущен успешно"
+    else
+        log_err "❌ Ошибка запуска Grafana"
+        return 1
+    fi
     
     # Установка Prometheus
     log_info "Установка Prometheus..."

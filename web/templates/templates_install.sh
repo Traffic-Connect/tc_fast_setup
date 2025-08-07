@@ -20,6 +20,16 @@ install_templates() {
         return 0
     fi
     
+    # Проверка, не установлены ли уже шаблоны
+    local NGINX_TEMPL_DIR="/usr/local/admin/data/templates/web/nginx"
+    if [ -d "$NGINX_TEMPL_DIR" ] && [ "$(ls "$NGINX_TEMPL_DIR"/tc-* 2>/dev/null | wc -l)" -gt 0 ]; then
+        log_warn "Шаблоны уже установлены, пропускаем установку"
+        log_info "Статус шаблонов:"
+        log_info "  Nginx шаблонов: $(ls "$NGINX_TEMPL_DIR"/tc-* 2>/dev/null | wc -l)"
+        log_ok "✅ Этап 5 завершен успешно (пропущен)"
+        return 0
+    fi
+    
     local NGINX_TEMPL_DIR="/usr/local/admin/data/templates/web/nginx"
     local PHPFPM_TEMPL_DIR="/usr/local/admin/data/templates/web/php-fpm"
     local TEMPLATES_DIR="$PROJECT_ROOT/web/templates"
