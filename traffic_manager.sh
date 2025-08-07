@@ -301,6 +301,13 @@ install_hestia() {
         groupdel "$HESTIA_USERNAME" 2>/dev/null || true
     fi
     
+    # Удаление доменных директорий
+    log_info "Очистка доменных директорий..."
+    rm -rf /home/*/web/* 2>/dev/null || true
+    rm -rf /home/*/conf/web/* 2>/dev/null || true
+    rm -rf /var/log/hestia 2>/dev/null || true
+    rm -rf /usr/share/phpmyadmin/tmp 2>/dev/null || true
+    
     # Проверка конфликтующих пакетов
     log_info "Проверка конфликтующих пакетов..."
     local conflicting_packages=()
@@ -374,27 +381,43 @@ install_hestia() {
     log_info "Выполнение установки HestiaCP..."
     echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
     
-    # Проверка установки
-    sleep 5
-    if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ]; then
-        log_ok "✅ HestiaCP установлен успешно"
-        echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
-        
-        # Запуск службы HestiaCP
-        log_info "Запуск службы HestiaCP..."
-        systemctl enable admin 2>/dev/null || true
-        systemctl start admin 2>/dev/null || true
-        
-        # Проверка статуса
-        if systemctl is-active --quiet admin 2>/dev/null; then
-            log_ok "✅ Служба HestiaCP запущена"
-        else
-            log_warn "⚠️ Служба HestiaCP не запустилась, но установка завершена"
-        fi
-    else
-        log_err "❌ Ошибка установки HestiaCP"
-        return 1
-    fi
+                        # Проверка установки
+                    sleep 5
+                    if [ -f "/usr/local/admin/bin/admin" ] && [ -d "/usr/local/admin" ]; then
+                        log_ok "✅ HestiaCP установлен успешно"
+                        echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
+                        
+                        # Запуск службы HestiaCP
+                        log_info "Запуск службы HestiaCP..."
+                        systemctl enable admin 2>/dev/null || true
+                        systemctl start admin 2>/dev/null || true
+                        
+                        # Проверка статуса
+                        if systemctl is-active --quiet admin 2>/dev/null; then
+                            log_ok "✅ Служба HestiaCP запущена"
+                        else
+                            log_warn "⚠️ Служба HestiaCP не запустилась, но установка завершена"
+                        fi
+                        
+                        # Проверка доступности веб-интерфейса
+                        log_info "Проверка веб-интерфейса HestiaCP..."
+                        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 | grep -q "200\|302"; then
+                            log_ok "✅ Веб-интерфейс HestiaCP доступен"
+                        else
+                            log_warn "⚠️ Веб-интерфейс HestiaCP недоступен, но установка завершена"
+                        fi
+                        
+                        # Очистка проблемного домена если он существует
+                        log_info "Очистка проблемного домена..."
+                        if [ -d "/home/$HESTIA_USERNAME/web/$HESTIA_HOSTNAME" ]; then
+                            rm -rf "/home/$HESTIA_USERNAME/web/$HESTIA_HOSTNAME" 2>/dev/null || true
+                            rm -rf "/home/$HESTIA_USERNAME/conf/web/$HESTIA_HOSTNAME" 2>/dev/null || true
+                            log_info "Проблемный домен очищен"
+                        fi
+                    else
+                        log_err "❌ Ошибка установки HestiaCP"
+                        return 1
+                    fi
     
     # Очистка временных файлов
     log_info "Очистка временных файлов..."
