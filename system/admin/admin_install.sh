@@ -32,6 +32,33 @@ install_admin_panel() {
         groupdel "$HESTIA_USERNAME" 2>/dev/null || true
     fi
     
+    # Проверка конфликтующих пакетов
+    log_info "Проверка конфликтующих пакетов..."
+    local conflicting_packages=()
+    
+    if dpkg -l | grep -q "^ii.*ufw"; then
+        conflicting_packages+=("ufw")
+    fi
+    
+    if dpkg -l | grep -q "^ii.*nginx"; then
+        conflicting_packages+=("nginx")
+    fi
+    
+    if [ ${#conflicting_packages[@]} -gt 0 ]; then
+        log_warn "Обнаружены конфликтующие пакеты: ${conflicting_packages[*]}"
+        log_info "Временно удаляем конфликтующие пакеты для установки HestiaCP..."
+        
+        # Останавливаем и удаляем конфликтующие пакеты
+        for package in "${conflicting_packages[@]}"; do
+            log_info "Удаление пакета: $package"
+            systemctl stop "$package" 2>/dev/null || true
+            apt remove --purge -y "$package" 2>/dev/null || true
+            apt autoremove -y
+        done
+        
+        log_info "Конфликтующие пакеты удалены"
+    fi
+    
     # Загрузка скрипта установки HestiaCP
     log_info "Загрузка установщика HestiaCP..."
     wget -O /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
@@ -49,6 +76,17 @@ install_admin_panel() {
     
     if [ $? -eq 0 ]; then
         log_ok "✅ HestiaCP установлен успешно"
+        
+        # Восстановление безопасности после установки HestiaCP
+        if [ ${#conflicting_packages[@]} -gt 0 ]; then
+            log_info "Восстановление настроек безопасности..."
+            
+            # Перезапускаем настройку безопасности
+            source "$PROJECT_ROOT/system/security/security_install.sh"
+            setup_security
+            
+            log_ok "✅ Настройки безопасности восстановлены"
+        fi
     else
         log_err "❌ Ошибка установки HestiaCP"
         return 1
