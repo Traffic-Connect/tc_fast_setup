@@ -1,0 +1,43 @@
+# Системные файлы
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Временные файлы
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Логи
+*.log
+logs/
+
+# Конфигурационные файлы с секретами
+config.local.sh
+*.local.sh
+.env
+.env.local
+
+# Резервные копии
+*.bak
+*.backup
+*.old
+
+# Кэш
+.cache/
+*.cache
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Временные директории
+tmp/
+temp/

@@ -7,12 +7,12 @@
 if [ -z "$PROJECT_ROOT" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-    source "$PROJECT_ROOT/scripts/configuration.sh"
+    source "$PROJECT_ROOT/core/configs/configuration.sh"
 fi
 
 # Загрузка пользовательской конфигурации если существует
 if [ -f "$PROJECT_ROOT/config.local.sh" ]; then
-    source "$PROJECT_ROOT/config.local.sh"
+    source "$PROJECT_ROOT/web/configs/config.local.sh"
 fi
 
 # Глобальные переменные для отслеживания

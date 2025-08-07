@@ -7,8 +7,8 @@
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-source "$PROJECT_ROOT/scripts/configuration.sh"
-source "$PROJECT_ROOT/scripts/libraries/common.sh"
+source "$PROJECT_ROOT/core/configs/configuration.sh"
+source "$PROJECT_ROOT/core/utils/common.sh"
 
 install_templates() {
     log_info "=== ЭТАП 5: Установка шаблонов ==="
@@ -22,7 +22,7 @@ install_templates() {
     
     local NGINX_TEMPL_DIR="/usr/local/admin/data/templates/web/nginx"
     local PHPFPM_TEMPL_DIR="/usr/local/admin/data/templates/web/php-fpm"
-    local TEMPLATES_DIR="$PROJECT_ROOT/modules/templates"
+    local TEMPLATES_DIR="$PROJECT_ROOT/web/templates"
     
     log_info "Создание директорий для шаблонов..."
     mkdir -p "$NGINX_TEMPL_DIR" "$PHPFPM_TEMPL_DIR"

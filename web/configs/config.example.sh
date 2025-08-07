@@ -21,13 +21,11 @@ ADMIN_LANG="ru"                            # Язык интерфейса (ru/e
 # НАСТРОЙКИ HESTIACP
 # ============================================================================
 
-# Компоненты HestiaCP (yes/no)
-ADMIN_APACHE="no"                          # Apache web server
-ADMIN_NAMED="no"                           # BIND DNS server
-ADMIN_EXIM="no"                            # Exim mail server
-ADMIN_DOVECOT="no"                         # Dovecot IMAP/POP3
-ADMIN_CLAMAV="no"                          # ClamAV antivirus
-ADMIN_SPAMASSASSIN="no"                    # SpamAssassin
+# Настройки HestiaCP
+HESTIA_USERNAME="Trafficadmin"             # Имя пользователя HestiaCP
+HESTIA_EMAIL="info@domain.tld"             # Email для HestiaCP
+HESTIA_PASSWORD="Qw12312312345"            # Пароль для HestiaCP
+HESTIA_HOSTNAME="hostname.domain.tld"      # Имя хоста для HestiaCP
 
 # ============================================================================
 # НАСТРОЙКИ МОНИТОРИНГА
@@ -53,10 +51,10 @@ GRAFANA_PASSWORD="your-grafana-password"   # Пароль для Grafana (мин
 # ============================================================================
 
 # 1. Скопируйте этот файл:
-#    cp scripts/config.example.sh scripts/config.local.sh
+#    cp web/configs/config.example.sh web/configs/config.local.sh
 #
 # 2. Отредактируйте config.local.sh:
-#    nano scripts/config.local.sh
+#    nano web/configs/config.local.sh
 #
 # 3. Измените настройки под ваши нужды
 #

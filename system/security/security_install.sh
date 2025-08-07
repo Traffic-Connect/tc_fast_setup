@@ -7,13 +7,17 @@
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-source "$PROJECT_ROOT/scripts/configuration.sh"
-source "$PROJECT_ROOT/scripts/libraries/common.sh"
+source "$PROJECT_ROOT/core/configs/configuration.sh"
+source "$PROJECT_ROOT/core/utils/common.sh"
 
 setup_security() {
     log_info "=== ЭТАП 2: Настройка безопасности ==="
     
-    log_info "Настройка безопасности..."
+    log_info "Настройка безопасности с политикой TrafficConnect..."
+    
+    # Проверка безопасности системы
+    log_info "Проверка текущего состояния безопасности..."
+    check_system_security
     
     # Настройка firewall
     log_info "Настройка firewall..."

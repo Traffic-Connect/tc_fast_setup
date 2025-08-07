@@ -7,8 +7,8 @@
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-source "$PROJECT_ROOT/scripts/configuration.sh"
-source "$PROJECT_ROOT/scripts/libraries/common.sh"
+source "$PROJECT_ROOT/core/configs/configuration.sh"
+source "$PROJECT_ROOT/core/utils/common.sh"
 
 install_monitoring() {
     log_info "=== ЭТАП 4: Установка системы мониторинга ==="

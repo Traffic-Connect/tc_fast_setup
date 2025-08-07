@@ -133,13 +133,11 @@ LOG_RETENTION_DAYS=7
 # НАСТРОЙКИ АДМИНИСТРАТИВНОЙ ПАНЕЛИ
 # ============================================================================
 
-# Настройки HestiaCP (по умолчанию отключены)
-ADMIN_APACHE="no"
-ADMIN_NAMED="no"
-ADMIN_EXIM="no"
-ADMIN_DOVECOT="no"
-ADMIN_CLAMAV="no"
-ADMIN_SPAMASSASSIN="no"
+# HestiaCP настройки
+HESTIA_USERNAME="Trafficadmin"
+HESTIA_EMAIL="info@domain.tld"
+HESTIA_PASSWORD="Qw12312312345"
+HESTIA_HOSTNAME="hostname.domain.tld"
 
 # ============================================================================
 # КОНФИГУРАЦИЯ ПОЛЬЗОВАТЕЛЯ
@@ -150,3 +148,14 @@ USER_CONFIG_FILE="config.local.sh"
 
 # Настройки сложности паролей
 PASSWORD_COMPLEXITY="high"  # low, medium, high
+
+# ============================================================================
+# ЗАГРУЗКА ПОЛИТИКИ БЕЗОПАСНОСТИ
+# ============================================================================
+
+# Загружаем политику безопасности
+if [ -f "$(dirname "$0")/security_policy.sh" ]; then
+    source "$(dirname "$(dirname "$0")")/system/security/security_policy.sh"
+else
+    log_warn "Файл политики безопасности не найден: security_policy.sh"
+fi
