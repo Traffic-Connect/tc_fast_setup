@@ -480,8 +480,8 @@ install_from_scratch() {
     echo "🚀 Шаг 8: Запуск установки Traffic Connect Server..."
     echo "================================================"
     
-    # Запуск основного скрипта установки
-    if ./install.sh; then
+    # Запуск универсального скрипта установки
+    if ./install_all.sh; then
         echo ""
         echo "🎉 УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО!"
         echo "================================================"
@@ -1409,12 +1409,9 @@ show_menu() {
     echo "  3) Исправить SSL таймауты"
     echo ""
     echo "🚀 УСТАНОВКА:"
-    echo "  4) Установка с нуля (полная)"
+    echo "  4) УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО (install_all.sh)"
     echo "  5) Установка только HestiaCP"
     echo "  6) Установка только мониторинга"
-    echo "  7) Основная установка (install.sh)"
-    echo "  8) Улучшенная установка (с перезагрузкой)"
-    echo "  9) УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО (install_all.sh)"
     echo ""
     echo "📊 ИНФОРМАЦИЯ:"
     echo "  8) Показать учетные данные"
@@ -1435,7 +1432,7 @@ if [ $# -eq 0 ]; then
     # Интерактивный режим
     while true; do
         show_menu
-        read -p "Выберите действие (0-13): " choice
+        read -p "Выберите действие (0-10): " choice
         
         case $choice in
             1)
@@ -1448,7 +1445,8 @@ if [ $# -eq 0 ]; then
                 fix_ssl_timeouts
                 ;;
             4)
-                install_from_scratch
+                echo "Запуск универсальной установки..."
+                ./install_all.sh
                 ;;
             5)
                 install_hestia_only
@@ -1458,27 +1456,15 @@ if [ $# -eq 0 ]; then
                 install_monitoring_only
                 ;;
             7)
-                echo "Запуск основной установки..."
-                ./install.sh
-                ;;
-            8)
-                echo "Запуск улучшенной установки..."
-                ./install_improved.sh
-                ;;
-            9)
-                echo "Запуск универсальной установки..."
-                ./install_all.sh
-                ;;
-            10)
                 show_credentials
                 ;;
-            11)
+            8)
                 main_security_check
                 ;;
-            12)
+            9)
                 check_version
                 ;;
-            13)
+            10)
                 force_update
                 ;;
             0)
@@ -1515,10 +1501,7 @@ else
             install_monitoring_only
             ;;
         --install)
-            ./install.sh
-            ;;
-        --install-improved)
-            ./install_improved.sh
+            ./install_all.sh
             ;;
         --install-all)
             ./install_all.sh
@@ -1548,8 +1531,7 @@ else
             echo "  --install-scratch    Установка с нуля (полная)"
             echo "  --install-hestia     Установка только HestiaCP"
             echo "  --install-monitoring Установка только мониторинга"
-            echo "  --install            Основная установка (install.sh)"
-            echo "  --install-improved   Улучшенная установка (с перезагрузкой)"
+            echo "  --install            УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО"
             echo "  --install-all        УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО"
             echo "  --show-credentials   Показать учетные данные"
             echo "  --check-security     Проверить безопасность"
