@@ -39,22 +39,23 @@ chmod +x force_update.sh
 │   │   ├── 📄 tc-nginx-only-mu.stpl  # Nginx мульти-юзер (стандарт)
 │   │   └── 📄 tc-nginx-only-mu.tpl   # Nginx мульти-юзер (основной)
 │   └── 📁 configs/                   # 🔧 Конфигурации веб
-│       └── 📄 config.example.sh      # Пример конфигурации
+│       └── 📄 config.local.sh        # Локальная конфигурация
 ├── 📁 system/                        # 🖥️ Системные компоненты
 │   ├── 📁 security/                  # 🛡️ Безопасность
 │   │   ├── 📄 security_install.sh    # Установка безопасности
 │   │   ├── 📄 security_policy.sh     # Политика безопасности
-│   │   └── 📄 security_examples.sh   # Примеры безопасности
+│   │   └── 📄 security_policy.sh     # Политика безопасности
 │   ├── 📁 monitoring/                # 📊 Мониторинг
 │   │   └── 📄 monitoring_install.sh  # Установка мониторинга
 │   └── 📁 admin/                     # 👨‍💼 Администрирование
 │       └── 📄 admin_install.sh       # Установка админ-панели
 ├── 📁 docs/                          # 📚 Документация
-│   └── 📁 examples/                  # 💡 Примеры
-│       └── 📄 test_security.sh       # Тест безопасности
+│   └── 📁 docs/                      # 📚 Документация
 ├── 📄 install.sh                     # 🚀 Точка входа
 ├── 📄 force_update.sh                # 🔄 Принудительное обновление
 ├── 📄 show_credentials.sh            # 🔐 Данные для входа
+├── 📄 check_security.sh              # 🛡️ Проверка безопасности
+├── 📄 PRODUCTION_SECURITY.md         # 📋 Инструкции по безопасности
 └── 📄 QUICK_FIX.md                   # 🚨 Быстрое исправление
 ```
 
@@ -76,9 +77,14 @@ chmod +x force_update.sh
 ./install.sh
 ```
 
-### Тестирование безопасности
+### Проверка безопасности
 ```bash
-./docs/examples/test_security.sh
+sudo bash check_security.sh
+```
+
+### Тестирование политики безопасности
+```bash
+./system/security/security_policy.sh
 ```
 
 ### Просмотр данных для входа
@@ -108,7 +114,7 @@ chmod +x force_update.sh
 - **admin/** - Административная панель
 
 ### 📚 Документация (`docs/`)
-- **examples/** - Примеры использования
+- **docs/** - Документация
 
 ## 📊 Статистика
 

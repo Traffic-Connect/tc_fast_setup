@@ -143,13 +143,13 @@ LOG_RETENTION_DAYS=7
 # ============================================================================
 
 # HestiaCP настройки
-HESTIA_USERNAME="Trafficadmin$(date +%s | tail -c 4)"
+HESTIA_USERNAME="TrafficAdmin$(openssl rand -hex 4)"
 HESTIA_EMAIL="info@domain.tld"
-HESTIA_PASSWORD="Qw12312312345"
+HESTIA_PASSWORD=""
 HESTIA_HOSTNAME="$(hostname -f 2>/dev/null || echo 'hostname.domain.tld')"
 
 # Grafana настройки
-GRAFANA_ADMIN_PASSWORD="TrafficGrafana$(date +%s | tail -c 4)"
+GRAFANA_ADMIN_PASSWORD=""
 
 # ============================================================================
 # КОНФИГУРАЦИЯ ПОЛЬЗОВАТЕЛЯ
@@ -158,8 +158,30 @@ GRAFANA_ADMIN_PASSWORD="TrafficGrafana$(date +%s | tail -c 4)"
 # Файл пользовательской конфигурации (загружается если существует)
 USER_CONFIG_FILE="config.local.sh"
 
-# Настройки сложности паролей
+# Настройки сложности паролей (согласно политике безопасности)
 PASSWORD_COMPLEXITY="high"  # low, medium, high
+
+# Автоматическая генерация паролей при установке
+AUTO_GENERATE_PASSWORDS=true
+
+# Переменные для хранения сгенерированных паролей (согласно политике безопасности)
+ROOT_SSH_PASSWORD=""
+HESTIA_PASSWORD=""
+GRAFANA_ADMIN_PASSWORD=""
+PROMETHEUS_PASSWORD=""
+LOKI_PASSWORD=""
+NODE_EXPORTER_PASSWORD=""
+PUSHGATEWAY_PASSWORD=""
+FAIL2BAN_EXPORTER_PASSWORD=""
+
+# Логины согласно политике безопасности
+HESTIA_USERNAME="TrafficAdmin"
+GRAFANA_USERNAME="TrafficMetrics"
+PROMETHEUS_USERNAME="TrafficMonitor"
+LOKI_USERNAME="TrafficLogger"
+NODE_EXPORTER_USERNAME="TrafficNode"
+PUSHGATEWAY_USERNAME="TrafficPush"
+FAIL2BAN_EXPORTER_USERNAME="TrafficFail2Ban"
 
 # ============================================================================
 # ЗАГРУЗКА ПОЛИТИКИ БЕЗОПАСНОСТИ

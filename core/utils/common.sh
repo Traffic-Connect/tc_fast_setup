@@ -104,6 +104,23 @@ generate_secure_password() {
     esac
 }
 
+# Дополнительные функции безопасности
+secure_file_permissions() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        chmod 600 "$file"
+        log_info "Установлены безопасные права для $file"
+    fi
+}
+
+secure_directory_permissions() {
+    local dir="$1"
+    if [ -d "$dir" ]; then
+        chmod 700 "$dir"
+        log_info "Установлены безопасные права для директории $dir"
+    fi
+}
+
 # Проверка сложности пароля
 validate_password_strength() {
     local password="$1"
@@ -425,21 +442,35 @@ save_credentials() {
     # Создаем директорию для логов
     mkdir -p "$LOG_DIR"
     
-    # Сохраняем пароли в безопасный файл
-    cat > "$CREDENTIALS_FILE" << EOF
-# Traffic Connect Server - Данные для входа
+    # Создаем безопасную директорию для учетных данных
+    local secure_dir="/root/.traffic_connect"
+    mkdir -p "$secure_dir"
+    chmod 700 "$secure_dir"
+    
+    # Загружаем политику безопасности для оценки паролей
+    if [ -f "$PROJECT_ROOT/system/security/security_policy.sh" ]; then
+        source "$PROJECT_ROOT/system/security/security_policy.sh"
+    fi
+    
+    # Сохраняем пароли в безопасный файл согласно политике безопасности
+    local secure_creds_file="$secure_dir/credentials.txt"
+    cat > "$secure_creds_file" << EOF
+# Traffic Connect Server - Данные для входа (согласно политике безопасности)
 # Создано: $(date)
 # ВНИМАНИЕ: Храните этот файл в безопасном месте!
+# Файл автоматически удалится через 24 часа!
 
-Grafana:
+Grafana (TrafficMetrics):
   URL: http://$(hostname -I | awk '{print $1}'):$GRAFANA_PORT
-  Логин: admin
+  Логин: $GRAFANA_USERNAME
   Пароль: $grafana_password
+  Сложность: $(assess_password_strength "$grafana_password" | cut -d' ' -f1)
 
-Административная панель:
+Административная панель (TrafficAdmin):
   URL: http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT
   Логин: $admin_user
   Пароль: $admin_password
+  Сложность: $(assess_password_strength "$admin_password" | cut -d' ' -f1)
 
 EOF
 
@@ -457,8 +488,16 @@ EOF
 EOF
 
     # Устанавливаем безопасные права
-    chmod 600 "$CREDENTIALS_FILE"
-    log_ok "Пароли сохранены в $CREDENTIALS_FILE"
+    chmod 600 "$secure_creds_file"
+    
+    # Создаем символическую ссылку для совместимости
+    ln -sf "$secure_creds_file" "$CREDENTIALS_FILE"
+    
+    # Настраиваем автоматическое удаление через 24 часа
+    echo "rm -f '$secure_creds_file'" | at now + 24 hours 2>/dev/null || true
+    
+    log_ok "Пароли сохранены в $secure_creds_file"
+    log_warn "Файл автоматически удалится через 24 часа!"
     log_warn "Измените пароли после установки!"
 }
 
