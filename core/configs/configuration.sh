@@ -178,8 +178,8 @@ FAIL2BAN_EXPORTER_USERNAME="TrafficFail2Ban"
 # ============================================================================
 
 # Загружаем политику безопасности
-if [ -f "$(dirname "$(dirname "$0")")/system/security/security_policy.sh" ]; then
-    source "$(dirname "$(dirname "$0")")/system/security/security_policy.sh"
+if [ -f "$(dirname "$(dirname "$(dirname "$0")")")/system/security/security_policy.sh" ]; then
+    source "$(dirname "$(dirname "$(dirname "$0")")")/system/security/security_policy.sh"
 else
     echo "[ВНИМАНИЕ] Файл политики безопасности не найден: system/security/security_policy.sh"
 fi
