@@ -336,7 +336,7 @@ install_hestia() {
     
     # Выполнение установки HestiaCP
     log_info "Выполнение установки HestiaCP..."
-    bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+    echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
     
     if [ $? -eq 0 ]; then
         log_ok "✅ HestiaCP установлен успешно"
@@ -1407,7 +1407,7 @@ install_hestia_only() {
     
     # Выполнение установки HestiaCP
     echo "🚀 Выполнение установки HestiaCP..."
-    bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+    echo "y" | bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
     
     if [ $? -eq 0 ]; then
         echo "✅ HestiaCP установлен успешно"
@@ -1624,9 +1624,11 @@ complete_removal() {
     echo "🗑️ Удаление Grafana..."
     if dpkg -l | grep -q "^ii.*grafana"; then
         apt remove --purge -y grafana 2>/dev/null || true
+        apt autoremove --purge -y 2>/dev/null || true
         rm -rf /etc/grafana 2>/dev/null || true
         rm -rf /var/lib/grafana 2>/dev/null || true
         rm -rf /var/log/grafana 2>/dev/null || true
+        rm -rf /var/cache/grafana 2>/dev/null || true
     fi
     
     # 4. Удаление Prometheus
@@ -1662,6 +1664,32 @@ complete_removal() {
     if [ -f "/usr/local/bin/fail2ban_exporter" ]; then
         rm -f /usr/local/bin/fail2ban_exporter 2>/dev/null || true
     fi
+    
+    # 8.1 Удаление связанных пакетов
+    echo "🗑️ Удаление связанных пакетов..."
+    local related_packages=(
+        "musl"
+        "nodejs"
+        "npm"
+        "curl"
+        "wget"
+        "unzip"
+        "software-properties-common"
+        "apt-transport-https"
+        "ca-certificates"
+        "gnupg"
+        "lsb-release"
+        "htop"
+        "iotop"
+        "nethogs"
+    )
+    
+    for package in "${related_packages[@]}"; do
+        if dpkg -l | grep -q "^ii.*$package"; then
+            echo "  Удаление пакета $package..."
+            apt remove --purge -y "$package" 2>/dev/null || true
+        fi
+    done
     
     # 9. Удаление пользователей мониторинга
     echo "🗑️ Удаление пользователей мониторинга..."
@@ -1718,20 +1746,38 @@ complete_removal() {
         fi
     done
     
-    # 12. Очистка пакетов
-    echo "🧹 Очистка пакетов..."
-    apt autoremove -y 2>/dev/null || true
+    # 12. Полная очистка пакетов
+    echo "🧹 Полная очистка пакетов..."
+    apt autoremove --purge -y 2>/dev/null || true
     apt autoclean 2>/dev/null || true
+    apt clean 2>/dev/null || true
+    
+    # Очистка кэша apt
+    echo "🧹 Очистка кэша apt..."
+    rm -rf /var/cache/apt/archives/* 2>/dev/null || true
+    rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+    apt update 2>/dev/null || true
     
     # 13. Перезагрузка systemd
     echo "🔄 Перезагрузка systemd..."
     systemctl daemon-reload 2>/dev/null || true
     
-    # 14. Очистка временных файлов
+    # 14. Удаление репозиториев и ключей
+    echo "🗑️ Удаление репозиториев и ключей..."
+    rm -f /etc/apt/sources.list.d/nodesource.list 2>/dev/null || true
+    rm -f /etc/apt/sources.list.d/docker.list 2>/dev/null || true
+    rm -f /usr/share/keyrings/nodesource.gpg 2>/dev/null || true
+    rm -f /usr/share/keyrings/docker-archive-keyring.gpg 2>/dev/null || true
+    
+    # 15. Очистка временных файлов
     echo "🧹 Очистка временных файлов..."
     rm -rf /tmp/hst-install.sh 2>/dev/null || true
     rm -rf /tmp/grafana.deb 2>/dev/null || true
     rm -rf /tmp/prometheus.tar.gz 2>/dev/null || true
+    rm -rf /tmp/loki.tar.gz 2>/dev/null || true
+    rm -rf /tmp/node_exporter.tar.gz 2>/dev/null || true
+    rm -rf /tmp/pushgateway.tar.gz 2>/dev/null || true
+    rm -rf /tmp/fail2ban_exporter.tar.gz 2>/dev/null || true
     
     echo ""
     echo "✅ ПОЛНОЕ УДАЛЕНИЕ ЗАВЕРШЕНО!"
