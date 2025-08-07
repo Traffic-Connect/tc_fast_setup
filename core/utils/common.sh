@@ -25,43 +25,15 @@ ROLLBACK_STACK=()
 REQUIRED_MEMORY=1024  # 1GB RAM
 REQUIRED_DISK_SPACE=5120  # 5GB свободного места
 
-# Цвета для логирования
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Цвета для логирования (импортируются из configuration.sh)
+# RED, GREEN, YELLOW, BLUE, NC определены в core/configs/configuration.sh
 
 # ============================================================================
-# ФУНКЦИИ ЛОГИРОВАНИЯ
+# ФУНКЦИИ ЛОГИРОВАНИЯ (ИСПОЛЬЗУЙТЕ logger.sh)
 # ============================================================================
 
-log_info() {
-    local message="$1"
-    echo -e "${BLUE}[Инфо] $message${NC}"
-}
-
-log_ok() {
-    local message="$1"
-    echo -e "${GREEN}[OK] $message${NC}"
-}
-
-log_err() {
-    local message="$1"
-    echo -e "${RED}[ОШИБКА] $message${NC}"
-}
-
-log_warn() {
-    local message="$1"
-    echo -e "${YELLOW}[ВНИМАНИЕ] $message${NC}"
-}
-
-log_debug() {
-    local message="$1"
-    if [[ "$LOG_LEVEL" == "DEBUG" ]]; then
-        echo -e "${BLUE}[DEBUG] $message${NC}"
-    fi
-}
+# Функции логирования перенесены в core/utils/logger.sh
+# Используйте source "$PROJECT_ROOT/core/utils/logger.sh" для доступа к функциям
 
 
 
@@ -69,40 +41,8 @@ log_debug() {
 # ФУНКЦИИ БЕЗОПАСНОСТИ
 # ============================================================================
 
-# Улучшенная генерация паролей с специальными символами
-generate_secure_password() {
-    local length=${1:-24}
-    local complexity=${2:-"high"}  # low, medium, high
-    
-    case $complexity in
-        "low")
-            # Только буквы и цифры
-            openssl rand -base64 32 | tr -d "=+/" | cut -c1-$length
-            ;;
-        "medium")
-            # Буквы, цифры и базовые символы
-            openssl rand -base64 32 | tr -d "=" | cut -c1-$length
-            ;;
-        "high"|*)
-            # Максимальная сложность с специальными символами
-            local chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?"
-            local password=""
-            
-            # Гарантируем наличие разных типов символов
-            password+=$(echo $chars | fold -w1 | shuf | head -c1)  # Заглавная буква
-            password+=$(echo $chars | fold -w1 | shuf | head -c1)  # Строчная буква
-            password+=$(echo $chars | fold -w1 | shuf | head -c1)  # Цифра
-            password+=$(echo $chars | fold -w1 | shuf | head -c1)  # Специальный символ
-            
-            # Дополняем до нужной длины
-            local remaining=$((length - 4))
-            password+=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-$remaining)
-            
-            # Перемешиваем
-            echo "$password" | fold -w1 | shuf | tr -d '\n'
-            ;;
-    esac
-}
+# Функция генерации паролей перенесена в system/security/security_policy.sh
+# Используйте generate_compliant_password() для генерации безопасных паролей
 
 # Дополнительные функции безопасности
 secure_file_permissions() {
@@ -121,25 +61,279 @@ secure_directory_permissions() {
     fi
 }
 
-# Проверка сложности пароля
-validate_password_strength() {
-    local password="$1"
-    local min_length=${2:-12}
+# Функция проверки сложности пароля перенесена в system/security/security_policy.sh
+# Используйте validate_password_policy() для проверки паролей согласно политике безопасности
+
+# ============================================================================
+# ФУНКЦИИ ПРОВЕРКИ ЦЕЛОСТНОСТИ ФАЙЛОВ
+# ============================================================================
+
+# Проверка SHA256 хеша файла
+verify_file_sha256() {
+    local file="$1"
+    local expected_hash="$2"
     
-    # Проверка длины
-    if [ ${#password} -lt $min_length ]; then
+    if [ ! -f "$file" ]; then
+        log_err "Файл не найден: $file"
         return 1
     fi
     
-    # Проверка наличия разных типов символов
-    local has_upper=$(echo "$password" | grep -q '[A-Z]' && echo "1" || echo "0")
-    local has_lower=$(echo "$password" | grep -q '[a-z]' && echo "1" || echo "0")
-    local has_digit=$(echo "$password" | grep -q '[0-9]' && echo "1" || echo "0")
-    local has_special=$(echo "$password" | grep -q '[!@#$%^&*()_+-=\[\]{}|;:,.<>?]' && echo "1" || echo "0")
+    if [ -z "$expected_hash" ]; then
+        log_warn "Хеш не указан для файла: $file"
+        return 0
+    fi
     
-    local score=$((has_upper + has_lower + has_digit + has_special))
+    local actual_hash=$(sha256sum "$file" | cut -d' ' -f1)
+    if [ "$actual_hash" = "$expected_hash" ]; then
+        log_ok "Проверка целостности файла прошла успешно: $file"
+        return 0
+    else
+        log_err "Ошибка проверки целостности файла: $file"
+        log_err "Ожидаемый хеш: $expected_hash"
+        log_err "Фактический хеш: $actual_hash"
+        return 1
+    fi
+}
+
+# Безопасная загрузка файла с проверкой целостности
+download_file_with_verification() {
+    local url="$1"
+    local target_file="$2"
+    local expected_hash="$3"
+    local retries="${4:-3}"
     
-    [ $score -ge 3 ]
+    log_info "Загрузка файла: $url"
+    
+    # Валидация URL
+    if ! validate_url "$url"; then
+        log_err "Некорректный URL: $url"
+        return 1
+    fi
+    
+    # Попытки загрузки
+    for ((i=1; i<=retries; i++)); do
+        log_info "Попытка загрузки $i/$retries: $url"
+        
+        if download_with_retry "$url" "$target_file" "$retries"; then
+            # Проверка целостности если указан хеш
+            if [ -n "$expected_hash" ]; then
+                if verify_file_sha256 "$target_file" "$expected_hash"; then
+                    log_ok "Файл успешно загружен и проверен: $target_file"
+                    return 0
+                else
+                    log_warn "Попытка $i/$retries: Ошибка проверки целостности"
+                    rm -f "$target_file"
+                    if [ $i -lt $retries ]; then
+                        sleep 2
+                        continue
+                    fi
+                fi
+            else
+                log_ok "Файл успешно загружен (без проверки целостности): $target_file"
+                return 0
+            fi
+        fi
+        
+        if [ $i -lt $retries ]; then
+            log_warn "Попытка $i/$retries не удалась, ожидание 2 секунды..."
+            sleep 2
+        fi
+    done
+    
+    log_err "Не удалось загрузить файл после $retries попыток: $url"
+    return 1
+}
+
+# ============================================================================
+# ФУНКЦИИ ВАЛИДАЦИИ ВХОДНЫХ ДАННЫХ
+# ============================================================================
+
+# Валидация имени пользователя
+validate_username() {
+    local username="$1"
+    
+    # Проверка длины
+    if [ ${#username} -lt 3 ] || [ ${#username} -gt 32 ]; then
+        log_err "Имя пользователя должно быть от 3 до 32 символов"
+        return 1
+    fi
+    
+    # Проверка допустимых символов
+    if ! echo "$username" | grep -qE '^[a-z_][a-z0-9_-]*$'; then
+        log_err "Имя пользователя может содержать только строчные буквы, цифры, дефисы и подчеркивания"
+        return 1
+    fi
+    
+    # Проверка на зарезервированные имена
+    local reserved_names=("root" "admin" "system" "daemon" "bin" "sys" "sync" "games" "man" "lp" "mail" "news" "uucp" "proxy" "www-data" "backup" "list" "irc" "gnats" "nobody" "libuuid" "syslog" "messagebus" "avahi-autoipd" "kernoops" "usbmux" "dnsmasq" "avahi" "speech-dispatcher" "whoopsie" "kernoops" "saned" "pulse" "colord" "hplip" "lightdm" "nvidia-persistenced" "rtkit" "saned" "usbmux" "whoopsie" "systemd-timesync" "systemd-network" "systemd-resolve" "systemd-bus-proxy" "debian-tor" "mysql" "postgres" "redis" "mongodb" "elasticsearch" "kibana" "logstash" "grafana" "prometheus" "loki" "node_exporter" "pushgateway" "fail2ban_exporter" "promtail" "alertmanager" "blackbox_exporter" "trafficadmin" "trafficmetrics" "trafficmonitor" "trafficlogger" "trafficdata" "trafficbackup" "trafficwatch" "trafficguard" "trafficapi" "traffichook" "trafficnode" "trafficpush" "traffictail" "trafficalert" "trafficblackbox" "trafficfail2ban" "trafficsuper" "trafficsystem" "trafficsecure" "trafficrest" "trafficgraphql" "trafficwebhook" "trafficalerts" "hestiaweb" "hestiamail" "hestia-users")
+    
+    for reserved in "${reserved_names[@]}"; do
+        if [[ "$username" == "$reserved" ]]; then
+            log_err "Имя пользователя '$username' зарезервировано системой"
+            return 1
+        fi
+    done
+    
+    return 0
+}
+
+# Валидация доменного имени
+validate_domain() {
+    local domain="$1"
+    
+    # Проверка длины
+    if [ ${#domain} -lt 3 ] || [ ${#domain} -gt 253 ]; then
+        log_err "Доменное имя должно быть от 3 до 253 символов"
+        return 1
+    fi
+    
+    # Проверка формата
+    if ! echo "$domain" | grep -qE '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'; then
+        log_err "Некорректный формат доменного имени: $domain"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Валидация IP адреса
+validate_ip() {
+    local ip="$1"
+    
+    # Проверка формата IPv4
+    if echo "$ip" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+        # Проверка диапазонов
+        IFS='.' read -r -a octets <<< "$ip"
+        for octet in "${octets[@]}"; do
+            if [ "$octet" -lt 0 ] || [ "$octet" -gt 255 ]; then
+                log_err "Некорректный IP адрес: $ip"
+                return 1
+            fi
+        done
+        return 0
+    fi
+    
+    # Проверка формата IPv6 (базовая)
+    if echo "$ip" | grep -qE '^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$'; then
+        return 0
+    fi
+    
+    log_err "Некорректный формат IP адреса: $ip"
+    return 1
+}
+
+# Валидация порта
+validate_port() {
+    local port="$1"
+    
+    # Проверка что это число
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        log_err "Порт должен быть числом: $port"
+        return 1
+    fi
+    
+    # Проверка диапазона
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        log_err "Порт должен быть в диапазоне 1-65535: $port"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Валидация пути к файлу
+validate_file_path() {
+    local path="$1"
+    
+    # Проверка длины
+    if [ ${#path} -gt 4096 ]; then
+        log_err "Путь слишком длинный: $path"
+        return 1
+    fi
+    
+    # Проверка на опасные символы
+    if echo "$path" | grep -q '[<>:"|?*]'; then
+        log_err "Путь содержит недопустимые символы: $path"
+        return 1
+    fi
+    
+    # Проверка на попытки выхода за пределы директории
+    if echo "$path" | grep -q '\.\.'; then
+        log_err "Путь содержит попытку выхода за пределы директории: $path"
+        return 1
+    fi
+    
+    return 0
+}
+
+# ============================================================================
+# ФУНКЦИИ ПОЛУЧЕНИЯ СИСТЕМНОЙ ИНФОРМАЦИИ
+# ============================================================================
+
+# Получение IP адреса сервера
+get_server_ip() {
+    local interface="${1:-}"
+    
+    if [ -n "$interface" ]; then
+        # Получение IP для конкретного интерфейса
+        ip addr show "$interface" 2>/dev/null | grep -oP 'inet \K\S+' | head -1
+    else
+        # Получение основного IP сервера
+        hostname -I | awk '{print $1}'
+    fi
+}
+
+# Получение всех IP адресов сервера
+get_all_server_ips() {
+    hostname -I
+}
+
+# Получение внешнего IP адреса
+get_external_ip() {
+    local timeout=10
+    local retries=3
+    
+    # Проверка сетевого подключения
+    if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log_warn "Нет подключения к интернету"
+        echo "Нет подключения к интернету"
+        return 1
+    fi
+    
+    # Попытка получения IP с таймаутами и повторами
+    for ((i=1; i<=retries; i++)); do
+        log_info "Попытка получения внешнего IP $i/$retries..."
+        
+        # Попытка через ipinfo.io
+        local ip=$(curl -s --max-time $timeout --connect-timeout 5 https://ipinfo.io/ip 2>/dev/null)
+        if [ -n "$ip" ] && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$ip"
+            return 0
+        fi
+        
+        # Попытка через ifconfig.me
+        ip=$(curl -s --max-time $timeout --connect-timeout 5 https://ifconfig.me 2>/dev/null)
+        if [ -n "$ip" ] && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$ip"
+            return 0
+        fi
+        
+        # Попытка через icanhazip.com
+        ip=$(curl -s --max-time $timeout --connect-timeout 5 https://icanhazip.com 2>/dev/null)
+        if [ -n "$ip" ] && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$ip"
+            return 0
+        fi
+        
+        if [ $i -lt $retries ]; then
+            log_warn "Попытка $i не удалась, ожидание 2 секунды..."
+            sleep 2
+        fi
+    done
+    
+    log_err "Не удалось получить внешний IP после $retries попыток"
+    echo "Не удалось получить внешний IP"
+    return 1
 }
 
 # ============================================================================
@@ -369,66 +563,22 @@ download_with_cache_and_verify() {
 
 
 # ============================================================================
-# ФУНКЦИИ ПРОВЕРКИ СЛУЖБ
+# ФУНКЦИИ ПРОВЕРКИ СЛУЖБ (ПЕРЕНЕСЕНЫ В service_manager.sh)
 # ============================================================================
 
-check_service() {
-    local service_name=$1
-    local port=${2:-0}
-    local max_attempts=${3:-$SERVICE_START_TIMEOUT}
-    local attempt=1
-    
-    log_info "Проверка службы $service_name..."
-    
-    while [ $attempt -le $max_attempts ]; do
-        # Проверка systemd службы
-        if systemctl is-active --quiet "$service_name"; then
-            # Если указан порт, проверяем веб-интерфейс
-            if [ "$port" -gt 0 ]; then
-                if curl -s "http://localhost:$port" >/dev/null 2>&1; then
-                    log_ok "Служба $service_name работает (порт $port)"
-                    return 0
-                else
-                    log_info "Попытка $attempt/$max_attempts: Веб-интерфейс недоступен, ожидание..."
-                    sleep 2
-                fi
-            else
-                log_ok "Служба $service_name работает"
-                return 0
-            fi
-        else
-            log_info "Попытка $attempt/$max_attempts: Служба $service_name не запущена, ожидание..."
-            sleep 3
-        fi
-        attempt=$((attempt + 1))
-    done
-    
-    log_err "Служба $service_name не запустилась после $max_attempts попыток"
-    journalctl -u "$service_name" -n 20 --no-pager
-    return 1
-}
+# Функции проверки служб перенесены в core/managers/service_manager.sh
+# Используйте source "$PROJECT_ROOT/core/managers/service_manager.sh" для доступа к функциям:
+# - check_service_status_universal()
+# - is_service_active()
+# - is_service_active_verbose()
+# - check_service_status_extended()
 
 # ============================================================================
 # ФУНКЦИИ НАСТРОЙКИ ЛОГИРОВАНИЯ
 # ============================================================================
 
-setup_logging() {
-    mkdir -p "$LOG_DIR"
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    
-    # Основной лог
-    exec 1> >(tee -a "$LOG_DIR/install_${timestamp}.log")
-    exec 2> >(tee -a "$LOG_DIR/install_error_${timestamp}.log" >&2)
-    
-    # JSON лог если включен
-    if [[ "$ENABLE_JSON_LOGGING" == "true" ]]; then
-        touch "$LOG_DIR/install.json"
-        chmod 600 "$LOG_DIR/install.json"
-    fi
-    
-    # Очистка старых логов
-    find "$LOG_DIR" -name "*.log" -mtime +$LOG_RETENTION_DAYS -delete 2>/dev/null || true
-}
+# setup_logging() - функция перенесена в core/utils/logger.sh
+# Используйте source "$PROJECT_ROOT/core/utils/logger.sh" для доступа к функции
 
 # ============================================================================
 # ФУНКЦИИ СОХРАНЕНИЯ ДАННЫХ
@@ -461,13 +611,13 @@ save_credentials() {
 # Файл автоматически удалится через 24 часа!
 
 Grafana (TrafficMetrics):
-  URL: http://$(hostname -I | awk '{print $1}'):$GRAFANA_PORT
+  URL: http://$(get_server_ip):$GRAFANA_PORT
   Логин: $GRAFANA_USERNAME
   Пароль: $grafana_password
   Сложность: $(assess_password_strength "$grafana_password" | cut -d' ' -f1)
 
 Административная панель (TrafficAdmin):
-  URL: http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT
+  URL: http://$(get_server_ip):$ADMIN_PORT
   Логин: $admin_user
   Пароль: $admin_password
   Сложность: $(assess_password_strength "$admin_password" | cut -d' ' -f1)
@@ -478,9 +628,9 @@ EOF
 
     cat >> "$CREDENTIALS_FILE" << EOF
 Дополнительные сервисы:
-  Prometheus: http://$(hostname -I | awk '{print $1}'):$PROMETHEUS_PORT
-  Loki: http://$(hostname -I | awk '{print $1}'):$LOKI_PORT
-  Pushgateway: http://$(hostname -I | awk '{print $1}'):$PUSHGATEWAY_PORT
+  Prometheus: http://$(get_server_ip):$PROMETHEUS_PORT
+  Loki: http://$(get_server_ip):$LOKI_PORT
+  Pushgateway: http://$(get_server_ip):$PUSHGATEWAY_PORT
 
 Метрики установки:
   Время начала: $(date -d @$INSTALLATION_START_TIME)
@@ -533,82 +683,8 @@ safe_rm() {
 }
 
 # ============================================================================
-# ОТОБРАЖЕНИЕ ДАННЫХ ДЛЯ ВХОДА
+# ОТОБРАЖЕНИЕ ДАННЫХ ДЛЯ ВХОДА (ИСПОЛЬЗУЙТЕ traffic_manager_new.sh)
 # ============================================================================
 
-show_access_credentials() {
-    echo ""
-    echo "🔐 ДАННЫЕ ДЛЯ ВХОДА В СИСТЕМУ"
-    echo "================================================"
-    
-    local server_ip=$(hostname -I | awk '{print $1}')
-    
-    # HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || systemctl is-active --quiet admin 2>/dev/null; then
-        echo "👨‍💼 АДМИНИСТРАТИВНАЯ ПАНЕЛЬ (HestiaCP):"
-        echo "  🌐 URL: https://$server_ip:$ADMIN_PORT"
-        echo "  👤 Логин: $HESTIA_USERNAME"
-        echo "  🔑 Пароль: $HESTIA_PASSWORD"
-        echo ""
-    fi
-    
-    # Grafana
-    if systemctl is-active --quiet grafana-server 2>/dev/null; then
-        echo "📊 GRAFANA (Мониторинг):"
-        echo "  🌐 URL: http://$server_ip:$GRAFANA_PORT"
-        echo "  👤 Логин: admin"
-        echo "  🔑 Пароль: $GRAFANA_ADMIN_PASSWORD"
-        echo ""
-    fi
-    
-    # Prometheus
-    if systemctl is-active --quiet prometheus 2>/dev/null; then
-        echo "📈 PROMETHEUS (Метрики):"
-        echo "  🌐 URL: http://$server_ip:$PROMETHEUS_PORT"
-        echo "  📝 Статус: ✅ Работает"
-        echo ""
-    fi
-    
-    # Node Exporter
-    if systemctl is-active --quiet node_exporter 2>/dev/null; then
-        echo "🖥️ NODE EXPORTER (Системные метрики):"
-        echo "  🌐 URL: http://$server_ip:$NODE_EXPORTER_PORT"
-        echo "  📝 Статус: ✅ Работает"
-        echo ""
-    fi
-    
-    # Loki
-    if systemctl is-active --quiet loki 2>/dev/null; then
-        echo "📝 LOKI (Логи):"
-        echo "  🌐 URL: http://$server_ip:$LOKI_PORT"
-        echo "  📝 Статус: ✅ Работает"
-        echo ""
-    fi
-    
-    echo "🔧 ДОПОЛНИТЕЛЬНЫЕ СЕРВИСЫ:"
-    echo "  📊 Pushgateway: http://$server_ip:$PUSHGATEWAY_PORT"
-    echo "  🛡️ Fail2ban Exporter: http://$server_ip:$FAIL2BAN_EXPORTER_PORT"
-    echo ""
-    
-    echo "📋 СТАТУС УСТАНОВКИ:"
-    echo "  ⏰ Время установки: $(date)"
-    echo "  🖥️ Сервер: $(hostname)"
-    echo "  🌐 IP адрес: $server_ip"
-    echo ""
-    
-    echo "⚠️ ВАЖНО:"
-    echo "  • Измените пароли после первого входа"
-    echo "  • Настройте файрвол для безопасности"
-    echo "  • Регулярно обновляйте систему"
-    echo ""
-    
-    echo "📁 ФАЙЛЫ КОНФИГУРАЦИИ:"
-    echo "  🔧 Основная конфигурация: $PROJECT_ROOT/core/configs/configuration.sh"
-    echo "  🛡️ Политика безопасности: $PROJECT_ROOT/system/security/security_policy.sh"
-    echo "  📚 Документация: $PROJECT_ROOT/docs/"
-    echo ""
-    
-    echo "================================================"
-    echo "🎉 Установка завершена успешно!"
-    echo "================================================"
-}
+# show_access_credentials() - функция перенесена в traffic_manager_new.sh
+# Используйте source "$PROJECT_ROOT/traffic_manager_new.sh" для доступа к функции

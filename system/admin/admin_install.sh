@@ -16,8 +16,8 @@ install_admin_panel() {
     # Проверка, не установлен ли уже HestiaCP
     if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
         log_warn "HestiaCP уже установлен, пропускаем установку"
-        log_info "Информация о существующей установке HestiaCP:"
-        log_info "  URL: https://$(hostname -I | awk '{print $1}'):8083"
+            log_info "Информация о существующей установке HestiaCP:"
+    log_info "  URL: https://$(get_server_ip):8083"
         log_info "  Статус: ✅ Уже установлена и работает"
         log_ok "✅ Этап 3 завершен успешно (пропущен)"
         return 0
@@ -75,43 +75,24 @@ install_admin_panel() {
     echo "connect-timeout = 60" >> ~/.curlrc 2>/dev/null || true
     echo "max-time = 300" >> ~/.curlrc 2>/dev/null || true
     
-    # Загрузка скрипта установки HestiaCP с повторными попытками
+    # Загрузка скрипта установки HestiaCP (используем функцию из hestia_install.sh)
     log_info "Загрузка установщика HestiaCP..."
-    local download_success=false
     
-    for attempt in 1 2 3; do
-        log_info "Попытка загрузки $attempt/3..."
-        
-        if wget --timeout=300 --tries=3 --no-check-certificate -O /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh; then
-            download_success=true
-            break
-        else
-            log_warn "Попытка $attempt не удалась, повторяем..."
-            sleep 5
-        fi
-    done
-    
-    if [ ! -f "/tmp/hst-install.sh" ] || [ "$download_success" = false ]; then
-        log_err "❌ Не удалось загрузить установщик HestiaCP после 3 попыток"
-        log_info "Пробуем альтернативный метод загрузки..."
-        
-        # Альтернативная загрузка через curl
-        if curl --connect-timeout 60 --max-time 300 -k -o /tmp/hst-install.sh https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh; then
-            log_ok "✅ Установщик загружен через curl"
-        else
-            log_err "❌ Не удалось загрузить установщик HestiaCP"
-            return 1
-        fi
+    # Загружаем функцию установки HestiaCP
+    if [ -f "$PROJECT_ROOT/core/installers/hestia_install.sh" ]; then
+        source "$PROJECT_ROOT/core/installers/hestia_install.sh"
+        # Используем функцию загрузки из hestia_install.sh
+        download_hestia_installer
+    else
+        log_err "Файл hestia_install.sh не найден"
+        return 1
     fi
-    
-    chmod +x /tmp/hst-install.sh
     
     # Предварительная установка Composer с правильными настройками SSL
     log_info "Предварительная настройка Composer для решения проблем SSL..."
     
     # Создаем временный скрипт для установки Composer
     cat > /tmp/install_composer.sh << 'EOF'
-#!/bin/bash
 # Установка Composer с правильными настройками SSL
 
 # Настройка переменных окружения для SSL
@@ -178,10 +159,10 @@ EOF
     rm -rf /tmp/composer
     
     # Информация о доступе к HestiaCP
-    log_info "Информация о доступе к HestiaCP:"
-    log_info "  URL: https://$(hostname -I | awk '{print $1}'):8083"
+            log_info "Информация о доступе к HestiaCP:"
+        log_info "  URL: https://$(get_server_ip):8083"
     log_info "  Логин: $HESTIA_USERNAME"
-    log_info "  Пароль: $HESTIA_PASSWORD"
+            log_info "  Пароль: [СКРЫТ]"
     log_info "  Статус: ✅ Установлена и работает"
     
     log_ok "✅ Этап 3 завершен успешно"

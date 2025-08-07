@@ -126,7 +126,7 @@ EOF
     systemctl start fail2ban
     
     # Проверка установки
-    if systemctl is-active --quiet fail2ban; then
+    if is_service_active "fail2ban"; then
         log_ok "✅ Fail2ban запущен"
     else
         log_err "❌ Ошибка запуска Fail2ban"

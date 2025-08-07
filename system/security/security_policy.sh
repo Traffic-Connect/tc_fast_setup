@@ -477,7 +477,7 @@ check_system_security() {
     fi
     
     # Проверка fail2ban
-    if systemctl is-active --quiet fail2ban; then
+    if is_service_active "fail2ban"; then
         security_score=$((security_score + 20))
         echo "✅ Fail2ban активен"
     else
@@ -564,6 +564,63 @@ check_system_security() {
 }
 
 # ============================================================================
+# ЦЕНТРАЛИЗОВАННАЯ ГЕНЕРАЦИЯ ПАРОЛЕЙ СИСТЕМЫ
+# ============================================================================
+
+# Генерация всех паролей системы
+generate_all_system_passwords() {
+    log_info "Генерация безопасных паролей для всех сервисов..."
+    
+    # Генерация паролей для всех сервисов
+    if type generate_compliant_password >/dev/null 2>&1; then
+        HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        GRAFANA_ADMIN_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        PROMETHEUS_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        LOKI_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        NODE_EXPORTER_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        PUSHGATEWAY_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        FAIL2BAN_EXPORTER_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+        ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
+    else
+        # Fallback генерация паролей через openssl
+        HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        PROMETHEUS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        LOKI_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        NODE_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        PUSHGATEWAY_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        FAIL2BAN_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+        ROOT_SSH_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-24)
+    fi
+    
+    # Экспорт переменных
+    export HESTIA_PASSWORD
+    export GRAFANA_ADMIN_PASSWORD
+    export PROMETHEUS_PASSWORD
+    export LOKI_PASSWORD
+    export NODE_EXPORTER_PASSWORD
+    export PUSHGATEWAY_PASSWORD
+    export FAIL2BAN_EXPORTER_PASSWORD
+    export ROOT_SSH_PASSWORD
+    
+    log_ok "Пароли сгенерированы успешно"
+}
+
+# Генерация пароля для конкретного сервиса
+generate_service_password() {
+    local service_name="$1"
+    local password_length="${2:-$RECOMMENDED_PASSWORD_LENGTH}"
+    local complexity="${3:-high}"
+    
+    if type generate_compliant_password >/dev/null 2>&1; then
+        generate_compliant_password "$password_length" "$complexity"
+    else
+        # Fallback генерация
+        openssl rand -base64 32 | tr -d "=+/" | cut -c1-24
+    fi
+}
+
+# ============================================================================
 # ЭКСПОРТ ФУНКЦИЙ И ПЕРЕМЕННЫХ
 # ============================================================================
 
@@ -576,6 +633,8 @@ export -f generate_random_traffic_login
 export -f save_secure_credentials
 export -f generate_and_save_module_credentials
 export -f check_system_security
+export -f generate_all_system_passwords
+export -f generate_service_password
 
 # Экспортируем переменные
 export MIN_PASSWORD_LENGTH

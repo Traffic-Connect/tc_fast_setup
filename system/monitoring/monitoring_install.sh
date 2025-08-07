@@ -22,16 +22,16 @@ install_monitoring() {
     log_info "=== ЭТАП 4: Установка системы мониторинга ==="
     
     # Проверка, не установлены ли уже компоненты мониторинга
-    if systemctl is-active --quiet grafana-server 2>/dev/null || systemctl is-active --quiet prometheus 2>/dev/null; then
+    if is_service_active "grafana-server" || is_service_active "prometheus"; then
         log_warn "Компоненты мониторинга уже установлены, пропускаем установку"
         log_info "Статус компонентов мониторинга:"
-        if systemctl is-active --quiet grafana-server 2>/dev/null; then
+        if is_service_active "grafana-server"; then
             log_info "  Grafana: ✅ Работает"
         fi
-        if systemctl is-active --quiet prometheus 2>/dev/null; then
+        if is_service_active "prometheus"; then
             log_info "  Prometheus: ✅ Работает"
         fi
-        if systemctl is-active --quiet node_exporter 2>/dev/null; then
+        if is_service_active "node_exporter"; then
             log_info "  Node Exporter: ✅ Работает"
         fi
         log_ok "✅ Этап 4 завершен успешно (пропущен)"
@@ -70,7 +70,7 @@ EOF
     
     # Проверка запуска
     sleep 5
-    if systemctl is-active --quiet grafana-server; then
+    if is_service_active "grafana-server"; then
         log_ok "✅ Grafana запущен успешно"
     else
         log_err "❌ Ошибка запуска Grafana"

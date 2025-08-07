@@ -66,7 +66,7 @@ install_base_system() {
     
     # Попытка установки nginx отдельно (может быть конфликт)
     # Проверяем, не установлен ли уже HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || systemctl is-active --quiet admin 2>/dev/null || [ -f "/usr/local/hestia/install.log" ]; then
+    if [ -f "/usr/local/admin/bin/admin" ] || [ -d "/usr/local/admin" ] || is_service_active "admin" || [ -f "/usr/local/hestia/install.log" ]; then
         log_warn "⚠️ HestiaCP уже установлен, пропускаем установку Nginx"
     else
         log_info "Попытка установки Nginx..."
@@ -84,7 +84,7 @@ install_base_system() {
         systemctl start nginx 2>/dev/null || log_warn "Не удалось запустить nginx (возможно, не установлен)"
         
         # Проверка установки
-        if systemctl is-active --quiet nginx; then
+        if is_service_active "nginx"; then
             log_ok "✅ Nginx запущен"
         else
             log_warn "⚠️ Nginx не запущен (возможно, не установлен или конфликт)"

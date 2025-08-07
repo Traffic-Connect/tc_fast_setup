@@ -136,11 +136,10 @@ LOG_RETENTION_DAYS=7
 # HestiaCP настройки
 HESTIA_USERNAME="TrafficAdmin"
 HESTIA_EMAIL="info@domain.tld"
-HESTIA_PASSWORD=""
 HESTIA_HOSTNAME="$(hostname -f 2>/dev/null || echo 'hostname.domain.tld')"
 
 # Grafana настройки
-GRAFANA_ADMIN_PASSWORD=""
+# Пароли определяются ниже в разделе "Переменные для хранения сгенерированных паролей"
 
 # ============================================================================
 # КОНФИГУРАЦИЯ ПОЛЬЗОВАТЕЛЯ
