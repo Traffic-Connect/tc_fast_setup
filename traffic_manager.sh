@@ -334,50 +334,6 @@ install_hestia() {
     
     chmod +x /tmp/hst-install.sh
     
-    # Предварительная установка Composer с правильными настройками SSL
-    log_info "Предварительная настройка Composer для решения проблем SSL..."
-    
-    # Создаем временный скрипт для установки Composer
-    cat > /tmp/install_composer.sh << 'EOF'
-#!/bin/bash
-# Установка Composer с правильными настройками SSL
-
-# Настройка переменных окружения для SSL
-export COMPOSER_HOME=/tmp/composer
-export COMPOSER_CACHE_DIR=/tmp/composer/cache
-export COMPOSER_TIMEOUT=300
-
-# Создание директорий
-mkdir -p "$COMPOSER_HOME" "$COMPOSER_CACHE_DIR"
-
-# Загрузка Composer с повторными попытками
-for attempt in 1 2 3; do
-    echo "Попытка загрузки Composer $attempt/3..."
-    
-    if curl --connect-timeout 30 --max-time 60 -k -o /tmp/composer.phar https://getcomposer.org/download/2.8.10/composer.phar; then
-        echo "Composer загружен успешно"
-        chmod +x /tmp/composer.phar
-        mv /tmp/composer.phar /usr/local/bin/composer
-        break
-    else
-        echo "Попытка $attempt не удалась, повторяем..."
-        sleep 5
-    fi
-done
-
-# Проверка установки
-if [ -f "/usr/local/bin/composer" ]; then
-    echo "✅ Composer установлен успешно"
-    composer --version
-else
-    echo "❌ Не удалось установить Composer"
-    exit 1
-fi
-EOF
-    
-    chmod +x /tmp/install_composer.sh
-    bash /tmp/install_composer.sh
-    
     # Выполнение установки HestiaCP
     log_info "Выполнение установки HestiaCP..."
     bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
@@ -392,8 +348,7 @@ EOF
     
     # Очистка временных файлов
     log_info "Очистка временных файлов..."
-    rm -f /tmp/hst-install.sh /tmp/install_composer.sh
-    rm -rf /tmp/composer
+    rm -f /tmp/hst-install.sh
     
     # Отметка завершения этапа
     echo "hestia_completed" >> "$INSTALL_STAGE_FILE"
@@ -988,52 +943,7 @@ fix_dpkg_locks_manager() {
     echo "✅ Исправление блокировок dpkg завершено"
 }
 
-# Функция для исправления проблем Composer в HestiaCP
-fix_hestia_composer() {
-    echo "🔧 Исправление проблем Composer в HestiaCP..."
-    
-    # Остановка зависших процессов
-    echo "🛑 Остановка зависших процессов..."
-    pkill -f "composer" 2>/dev/null || true
-    pkill -f "php" 2>/dev/null || true
-    
-    # Настройка Composer
-    echo "⚙️ Настройка Composer..."
-    export COMPOSER_HOME=/tmp/composer
-    export COMPOSER_CACHE_DIR=/tmp/composer/cache
-    export COMPOSER_TIMEOUT=300
-    
-    mkdir -p "$COMPOSER_HOME" "$COMPOSER_CACHE_DIR"
-    
-    # Загрузка Composer с правильными настройками SSL
-    echo "📥 Загрузка Composer..."
-    for attempt in 1 2 3; do
-        echo "Попытка $attempt/3..."
-        if curl --connect-timeout 30 --max-time 60 -k -o /tmp/composer.phar https://getcomposer.org/download/2.8.10/composer.phar; then
-            echo "✅ Composer загружен успешно"
-            chmod +x /tmp/composer.phar
-            mv /tmp/composer.phar /usr/local/bin/composer
-            break
-        else
-            echo "❌ Попытка $attempt не удалась"
-            sleep 5
-        fi
-    done
-    
-    # Настройка PHP для Composer
-    echo "⚙️ Настройка PHP для Composer..."
-    if [ -f "/etc/php/8.1/cli/php.ini" ]; then
-        echo "memory_limit = 512M" >> /etc/php/8.1/cli/php.ini
-        echo "max_execution_time = 300" >> /etc/php/8.1/cli/php.ini
-    fi
-    
-    # Перезапуск сервисов HestiaCP
-    echo "🔄 Перезапуск сервисов HestiaCP..."
-    systemctl restart hestia 2>/dev/null || true
-    systemctl restart admin 2>/dev/null || true
-    
-    echo "✅ Исправление проблем Composer завершено"
-}
+
 
 # Функция для исправления SSL таймаутов
 fix_ssl_timeouts_manager() {
@@ -1053,11 +963,6 @@ fix_ssl_timeouts_manager() {
     echo "⚙️ Настройка curl..."
     echo "connect-timeout = 60" >> ~/.curlrc 2>/dev/null || true
     echo "max-time = 300" >> ~/.curlrc 2>/dev/null || true
-    
-    # Настройка Composer
-    echo "⚙️ Настройка Composer..."
-    export COMPOSER_TIMEOUT=300
-    composer config --global process-timeout 300 2>/dev/null || true
     
     echo "✅ SSL таймауты исправлены"
 }
@@ -1500,9 +1405,6 @@ install_hestia_only() {
     
     chmod +x /tmp/hst-install.sh
     
-    # Установка Composer
-    fix_hestia_composer
-    
     # Выполнение установки HestiaCP
     echo "🚀 Выполнение установки HestiaCP..."
     bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
@@ -1516,7 +1418,6 @@ install_hestia_only() {
     
     # Очистка временных файлов
     rm -f /tmp/hst-install.sh
-    rm -rf /tmp/composer
     
     echo "================================================"
     echo "✅ Установка HestiaCP завершена успешно!"
@@ -1829,7 +1730,6 @@ complete_removal() {
     # 14. Очистка временных файлов
     echo "🧹 Очистка временных файлов..."
     rm -rf /tmp/hst-install.sh 2>/dev/null || true
-    rm -rf /tmp/composer 2>/dev/null || true
     rm -rf /tmp/grafana.deb 2>/dev/null || true
     rm -rf /tmp/prometheus.tar.gz 2>/dev/null || true
     
@@ -1903,9 +1803,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         --fix-dpkg)
             fix_dpkg_locks_manager
             ;;
-        --fix-composer)
-            fix_hestia_composer
-            ;;
+
         --fix-ssl)
             fix_ssl_timeouts_manager
             ;;
@@ -1941,7 +1839,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             echo "  --install-from-scratch Установка с нуля (клонирование + установка)"
             echo "  --complete-removal     ПОЛНОЕ УДАЛЕНИЕ ВСЕГО (система с нуля)"
             echo "  --fix-dpkg             Исправить блокировки dpkg"
-            echo "  --fix-composer         Исправить проблемы Composer"
+
             echo "  --fix-ssl              Исправить SSL таймауты"
             echo "  --check-security       Проверить безопасность"
             echo "  --show-credentials     Показать учетные данные"
@@ -1975,7 +1873,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
                     fix_dpkg_locks_manager
                     ;;
                 2)
-                    fix_hestia_composer
+                    echo "❌ Функция исправления Composer удалена"
                     ;;
                 3)
                     fix_ssl_timeouts_manager
