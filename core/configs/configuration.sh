@@ -154,8 +154,8 @@ PASSWORD_COMPLEXITY="high"  # low, medium, high
 # ============================================================================
 
 # Загружаем политику безопасности
-if [ -f "$(dirname "$0")/security_policy.sh" ]; then
+if [ -f "$(dirname "$(dirname "$0")")/system/security/security_policy.sh" ]; then
     source "$(dirname "$(dirname "$0")")/system/security/security_policy.sh"
 else
-    echo "[ВНИМАНИЕ] Файл политики безопасности не найден: security_policy.sh"
+    echo "[ВНИМАНИЕ] Файл политики безопасности не найден: system/security/security_policy.sh"
 fi

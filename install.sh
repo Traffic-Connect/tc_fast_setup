@@ -103,7 +103,7 @@ install_monitoring() {
     # Использование модульного установщика мониторинга
     source "$PROJECT_ROOT/system/monitoring/monitoring_install.sh"
     
-    if install_monitoring_system; then
+    if install_monitoring; then
         log_ok "Система мониторинга установлена"
         return 0
     else
@@ -122,7 +122,7 @@ setup_web_server() {
     # Использование модульного установщика шаблонов
     source "$PROJECT_ROOT/web/templates/templates_install.sh"
     
-    if setup_web_templates; then
+    if install_templates; then
         log_ok "Веб-сервер настроен"
         return 0
     else
@@ -165,7 +165,7 @@ main_installation() {
     fi
     
     # Настройка веб-сервера
-    if ! setup_web_server; then
+    if ! install_templates; then
         log_warn "Предупреждение: не удалось настроить веб-сервер"
     fi
     

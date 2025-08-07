@@ -13,6 +13,15 @@ source "$PROJECT_ROOT/core/utils/common.sh"
 install_admin_panel() {
     log_info "=== ЭТАП 3: Установка административной панели ==="
     
+    # Проверка, не установлен ли уже HestiaCP
+    if [ -f "/usr/local/admin/bin/admin" ]; then
+        log_warn "HestiaCP уже установлен, пропускаем установку"
+        log_info "Информация о существующей установке HestiaCP:"
+        log_info "  URL: https://$(hostname -I | awk '{print $1}'):8083"
+        log_info "  Статус: ✅ Уже установлена и работает"
+        return 0
+    fi
+    
     log_info "Установка HestiaCP..."
     
     # Загрузка скрипта установки HestiaCP
