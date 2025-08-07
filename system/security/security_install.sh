@@ -276,19 +276,25 @@ Match Group ssh-users
     MaxSessions 5
 EOF
 
-    # Перезапуск SSH службы
-    log_info "Перезапуск SSH службы..."
-    systemctl restart sshd
-    
-    # Проверка статуса SSH
-    if systemctl is-active --quiet sshd; then
-        log_ok "✅ SSH служба перезапущена успешно"
+    # Проверка конфигурации SSH перед перезапуском
+    log_info "Проверка конфигурации SSH..."
+    if sshd -t 2>/dev/null; then
+        log_info "Конфигурация SSH корректна"
+        
+        # Перезапуск SSH службы
+        log_info "Перезапуск SSH службы..."
+        systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null
+        
+        # Проверка статуса SSH (пробуем оба имени службы)
+        if systemctl is-active --quiet sshd 2>/dev/null || systemctl is-active --quiet ssh 2>/dev/null; then
+            log_ok "✅ SSH служба перезапущена успешно"
+        else
+            log_warn "⚠️ SSH служба не запустилась, но продолжаем установку"
+            log_info "Проверьте конфигурацию SSH вручную: systemctl status ssh"
+        fi
     else
-        log_err "❌ Ошибка перезапуска SSH службы"
-        # Восстановление резервной копии
-        cp /etc/ssh/sshd_config.backup /etc/ssh/sshd_config
-        systemctl restart sshd
-        return 1
+        log_warn "⚠️ Конфигурация SSH содержит ошибки, пропускаем перезапуск"
+        log_info "Проверьте конфигурацию SSH вручную: sshd -t"
     fi
     
     # Сохранение информации о доступе

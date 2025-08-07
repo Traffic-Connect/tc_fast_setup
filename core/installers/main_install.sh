@@ -23,6 +23,14 @@ install_base_system() {
     
     # Обновление системы
     log_info "Обновление системы..."
+    
+    # Исправление прерванной установки dpkg
+    if dpkg -l | grep -q "^iU"; then
+        log_info "Обнаружена прерванная установка dpkg, исправляем..."
+        dpkg --configure -a
+        apt-get install -f -y
+    fi
+    
     apt update && apt upgrade -y
     
     # Установка базовых пакетов

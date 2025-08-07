@@ -126,7 +126,7 @@ mkdir -p "$COMPOSER_HOME" "$COMPOSER_CACHE_DIR"
 for attempt in 1 2 3; do
     echo "Попытка загрузки Composer $attempt/3..."
     
-    if curl --connect-timeout 60 --max-time 300 -k -o /tmp/composer.phar https://getcomposer.org/download/2.8.10/composer.phar; then
+    if curl --connect-timeout 30 --max-time 60 -k -o /tmp/composer.phar https://getcomposer.org/download/2.8.10/composer.phar; then
         echo "Composer загружен успешно"
         chmod +x /tmp/composer.phar
         mv /tmp/composer.phar /usr/local/bin/composer
