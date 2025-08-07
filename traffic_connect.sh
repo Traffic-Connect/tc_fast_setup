@@ -1413,6 +1413,7 @@ show_menu() {
     echo "  5) Установка только HestiaCP"
     echo "  6) Установка только мониторинга"
     echo "  7) Основная установка (install.sh)"
+    echo "  8) Улучшенная установка (с перезагрузкой)"
     echo ""
     echo "📊 ИНФОРМАЦИЯ:"
     echo "  8) Показать учетные данные"
@@ -1433,7 +1434,7 @@ if [ $# -eq 0 ]; then
     # Интерактивный режим
     while true; do
         show_menu
-        read -p "Выберите действие (0-11): " choice
+        read -p "Выберите действие (0-12): " choice
         
         case $choice in
             1)
@@ -1460,15 +1461,19 @@ if [ $# -eq 0 ]; then
                 ./install.sh
                 ;;
             8)
-                show_credentials
+                echo "Запуск улучшенной установки..."
+                ./install_improved.sh
                 ;;
             9)
-                main_security_check
+                show_credentials
                 ;;
             10)
-                check_version
+                main_security_check
                 ;;
             11)
+                check_version
+                ;;
+            12)
                 force_update
                 ;;
             0)
@@ -1507,6 +1512,9 @@ else
         --install)
             ./install.sh
             ;;
+        --install-improved)
+            ./install_improved.sh
+            ;;
         --show-credentials)
             show_credentials
             ;;
@@ -1533,6 +1541,7 @@ else
             echo "  --install-hestia     Установка только HestiaCP"
             echo "  --install-monitoring Установка только мониторинга"
             echo "  --install            Основная установка (install.sh)"
+            echo "  --install-improved   Улучшенная установка (с перезагрузкой)"
             echo "  --show-credentials   Показать учетные данные"
             echo "  --check-security     Проверить безопасность"
             echo "  --check-version      Проверить версии"
