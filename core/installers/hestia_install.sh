@@ -110,7 +110,7 @@ execute_hestia_installation() {
     log_info "Лог установки: $install_log"
     
     # Создание команды установки
-    local install_cmd="bash /tmp/hst-install.sh --lang 'ru' --hostname '$HESTIA_HOSTNAME' --username '$HESTIA_USERNAME' --email '$install_email' --password '$HESTIA_PASSWORD' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force"
+    local install_cmd="bash /tmp/hst-install.sh --lang 'ru' --hostname '$HESTIA_HOSTNAME' --username '$HESTIA_USERNAME' --email '$install_email' --password '$HESTIA_PASSWORD' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --composer no --force"
     
     log_info "Команда установки:"
     log_info "  $install_cmd"
@@ -127,10 +127,19 @@ execute_hestia_installation() {
     elif [ $install_exit_code -eq 124 ]; then
         log_err "❌ Установка HestiaCP прервана по таймауту (30 минут)"
         log_info "Проверьте лог установки: $install_log"
+        
+        # Останавливаем зависшие процессы Composer
+        stop_composer_processes
         return 1
     else
         log_err "❌ Ошибка установки HestiaCP (код: $install_exit_code)"
         log_info "Проверьте лог установки: $install_log"
+        
+        # Проверяем на ошибки Composer
+        if grep -q "composer\|Composer" "$install_log"; then
+            log_warn "⚠️ Обнаружены проблемы с Composer"
+            stop_composer_processes
+        fi
         
         # Анализ лога на предмет известных ошибок
         if grep -q "already exists" "$install_log"; then
@@ -145,7 +154,49 @@ execute_hestia_installation() {
             log_err "❌ Проблемы с сетевым подключением"
         fi
         
+        if grep -q "Download composer installer" "$install_log"; then
+            log_err "❌ Ошибка загрузки Composer"
+            log_info "Composer отключен в следующих установках"
+        fi
+        
         return 1
+    fi
+}
+
+# Функция для остановки зависших процессов Composer
+stop_composer_processes() {
+    log_info "Проверка и остановка зависших процессов Composer..."
+    
+    # Поиск и остановка процессов Composer
+    local composer_pids=$(pgrep -f "composer\|v-add-user-composer" 2>/dev/null)
+    
+    if [ -n "$composer_pids" ]; then
+        log_warn "Найдены процессы Composer: $composer_pids"
+        log_info "Останавливаем процессы Composer..."
+        
+        for pid in $composer_pids; do
+            if kill -TERM "$pid" 2>/dev/null; then
+                log_info "Отправлен сигнал TERM процессу $pid"
+            else
+                log_warn "Не удалось остановить процесс $pid"
+            fi
+        done
+        
+        # Ждем 5 секунд для graceful завершения
+        sleep 5
+        
+        # Принудительная остановка если процессы все еще работают
+        composer_pids=$(pgrep -f "composer\|v-add-user-composer" 2>/dev/null)
+        if [ -n "$composer_pids" ]; then
+            log_warn "Принудительная остановка процессов Composer..."
+            for pid in $composer_pids; do
+                kill -KILL "$pid" 2>/dev/null || true
+            done
+        fi
+        
+        log_ok "Процессы Composer остановлены"
+    else
+        log_info "Процессы Composer не найдены"
     fi
 }
 

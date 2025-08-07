@@ -133,7 +133,7 @@ EOF
     
     # Выполнение установки HestiaCP
     log_info "Выполнение установки HestiaCP..."
-    bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+            bash /tmp/hst-install.sh --lang 'ru' --hostname "$HESTIA_HOSTNAME" --username "$HESTIA_USERNAME" --email "$HESTIA_EMAIL" --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --composer no --force
     
     if [ $? -eq 0 ]; then
         log_ok "✅ HestiaCP установлен успешно"
