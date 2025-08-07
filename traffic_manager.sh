@@ -294,12 +294,41 @@ install_hestia() {
     rm -f /lib/systemd/system/admin.service 2>/dev/null || true
     rm -f /lib/systemd/system/hestia.service 2>/dev/null || true
     
+    # Удаление системных пользователей HestiaCP
+    log_info "Удаление системных пользователей HestiaCP..."
+    if id "hestiaweb" &>/dev/null; then
+        userdel -r "hestiaweb" 2>/dev/null || true
+        groupdel "hestiaweb" 2>/dev/null || true
+    fi
+    if id "hestiamail" &>/dev/null; then
+        userdel -r "hestiamail" 2>/dev/null || true
+        groupdel "hestiamail" 2>/dev/null || true
+    fi
+    if id "hestia-users" &>/dev/null; then
+        groupdel "hestia-users" 2>/dev/null || true
+    fi
+    
     # Удаление пользователей HestiaCP
     if id "$HESTIA_USERNAME" &>/dev/null; then
         log_info "Удаление пользователя $HESTIA_USERNAME..."
         userdel -r "$HESTIA_USERNAME" 2>/dev/null || true
         groupdel "$HESTIA_USERNAME" 2>/dev/null || true
     fi
+    
+    # Полная очистка домашней директории пользователя
+    log_info "Полная очистка домашней директории пользователя..."
+    rm -rf "/home/$HESTIA_USERNAME" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/conf" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/web" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/tmp" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.config" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.cache" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.local" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.composer" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.vscode-server" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.ssh" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.npm" 2>/dev/null || true
+    rm -rf "/home/$HESTIA_USERNAME/.wp-cli" 2>/dev/null || true
     
     # Удаление доменных директорий
     log_info "Очистка доменных директорий..."
@@ -342,6 +371,26 @@ install_hestia() {
     # Перезагрузка systemd после очистки
     systemctl daemon-reload 2>/dev/null || true
     log_info "Очистка HestiaCP завершена"
+    
+    # Предварительная настройка прав доступа для cron
+    log_info "Предварительная настройка прав доступа для cron..."
+    
+    # Создание пользователей HestiaCP если они не существуют
+    if ! id "hestiaweb" &>/dev/null; then
+        useradd -r -s /bin/false -d /var/lib/hestia hestiaweb 2>/dev/null || true
+    fi
+    if ! id "hestiamail" &>/dev/null; then
+        useradd -r -s /bin/false -d /var/lib/hestia hestiamail 2>/dev/null || true
+    fi
+    if ! getent group "hestia-users" &>/dev/null; then
+        groupadd hestia-users 2>/dev/null || true
+    fi
+    
+    # Настройка прав доступа для cron
+    mkdir -p /var/spool/cron/crontabs 2>/dev/null || true
+    touch /var/spool/cron/crontabs/hestiaweb 2>/dev/null || true
+    chown hestiaweb:hestiaweb /var/spool/cron/crontabs/hestiaweb 2>/dev/null || true
+    chmod 600 /var/spool/cron/crontabs/hestiaweb 2>/dev/null || true
     
     # Настройка SSL для решения проблем с таймаутом
     fix_ssl_timeouts
