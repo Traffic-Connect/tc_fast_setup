@@ -1414,6 +1414,7 @@ show_menu() {
     echo "  6) Установка только мониторинга"
     echo "  7) Основная установка (install.sh)"
     echo "  8) Улучшенная установка (с перезагрузкой)"
+    echo "  9) УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО (install_all.sh)"
     echo ""
     echo "📊 ИНФОРМАЦИЯ:"
     echo "  8) Показать учетные данные"
@@ -1434,7 +1435,7 @@ if [ $# -eq 0 ]; then
     # Интерактивный режим
     while true; do
         show_menu
-        read -p "Выберите действие (0-12): " choice
+        read -p "Выберите действие (0-13): " choice
         
         case $choice in
             1)
@@ -1465,15 +1466,19 @@ if [ $# -eq 0 ]; then
                 ./install_improved.sh
                 ;;
             9)
-                show_credentials
+                echo "Запуск универсальной установки..."
+                ./install_all.sh
                 ;;
             10)
-                main_security_check
+                show_credentials
                 ;;
             11)
-                check_version
+                main_security_check
                 ;;
             12)
+                check_version
+                ;;
+            13)
                 force_update
                 ;;
             0)
@@ -1515,6 +1520,9 @@ else
         --install-improved)
             ./install_improved.sh
             ;;
+        --install-all)
+            ./install_all.sh
+            ;;
         --show-credentials)
             show_credentials
             ;;
@@ -1542,6 +1550,7 @@ else
             echo "  --install-monitoring Установка только мониторинга"
             echo "  --install            Основная установка (install.sh)"
             echo "  --install-improved   Улучшенная установка (с перезагрузкой)"
+            echo "  --install-all        УНИВЕРСАЛЬНАЯ УСТАНОВКА ВСЕГО"
             echo "  --show-credentials   Показать учетные данные"
             echo "  --check-security     Проверить безопасность"
             echo "  --check-version      Проверить версии"
