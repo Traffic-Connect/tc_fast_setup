@@ -51,7 +51,7 @@ generate_secure_passwords() {
     
     # Политика безопасности уже загружена в security_install.sh
     # Проверяем, доступны ли функции генерации паролей
-    if command -v generate_compliant_password >/dev/null 2>&1; then
+    if type generate_compliant_password >/dev/null 2>&1; then
         # Генерируем все необходимые пароли согласно политике безопасности
         ROOT_SSH_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")
         HESTIA_PASSWORD=$(generate_compliant_password $RECOMMENDED_PASSWORD_LENGTH "high")

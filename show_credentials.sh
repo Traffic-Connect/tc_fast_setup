@@ -12,6 +12,9 @@ PROJECT_ROOT="$SCRIPT_DIR"
 source "$PROJECT_ROOT/core/configs/configuration.sh"
 source "$PROJECT_ROOT/core/utils/common.sh"
 
+# Загрузка политики безопасности для функций генерации паролей
+source "$PROJECT_ROOT/system/security/security_policy.sh"
+
 echo "🔍 Traffic Connect Fast Setup - Данные для входа"
 echo "================================================"
 
