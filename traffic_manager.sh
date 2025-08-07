@@ -569,41 +569,28 @@ show_access_credentials() {
     # Prometheus
     if systemctl is-active --quiet prometheus 2>/dev/null; then
         echo "✅ Prometheus: http://$server_ip:9090"
-        echo "   Пользователь: $PROMETHEUS_USERNAME"
-        echo "   Пароль: $PROMETHEUS_PASSWORD"
     fi
     
     # Loki
     if systemctl is-active --quiet loki 2>/dev/null; then
         echo "✅ Loki: http://$server_ip:3100"
-        echo "   Пользователь: $LOKI_USERNAME"
-        echo "   Пароль: $LOKI_PASSWORD"
     fi
     
     # Node Exporter
     if systemctl is-active --quiet node_exporter 2>/dev/null; then
         echo "✅ Node Exporter: http://$server_ip:9100"
-        echo "   Пользователь: $NODE_EXPORTER_USERNAME"
-        echo "   Пароль: $NODE_EXPORTER_PASSWORD"
     fi
     
     # Pushgateway
     if systemctl is-active --quiet pushgateway 2>/dev/null; then
         echo "✅ Pushgateway: http://$server_ip:9091"
-        echo "   Пользователь: $PUSHGATEWAY_USERNAME"
-        echo "   Пароль: $PUSHGATEWAY_PASSWORD"
     fi
     
     # Fail2ban Exporter
     if systemctl is-active --quiet fail2ban_exporter 2>/dev/null; then
         echo "✅ Fail2ban Exporter: http://$server_ip:9191"
-        echo "   Пользователь: $FAIL2BAN_EXPORTER_USERNAME"
-        echo "   Пароль: $FAIL2BAN_EXPORTER_PASSWORD"
     fi
     
-    echo ""
-    echo "🔧 SSH доступ:"
-    echo "   ssh root@$server_ip"
     echo ""
 }
 
@@ -613,37 +600,37 @@ show_all_passwords() {
     echo "================================================"
     
     if [ -n "$HESTIA_PASSWORD" ]; then
-        echo "HestiaCP: $HESTIA_PASSWORD"
+        echo "HestiaCP ($HESTIA_USERNAME): $HESTIA_PASSWORD"
     fi
     
     if [ -n "$GRAFANA_ADMIN_PASSWORD" ]; then
-        echo "Grafana Admin: $GRAFANA_ADMIN_PASSWORD"
+        echo "Grafana (admin): $GRAFANA_ADMIN_PASSWORD"
     fi
     
     if [ -n "$PROMETHEUS_PASSWORD" ]; then
-        echo "Prometheus: $PROMETHEUS_PASSWORD"
+        echo "Prometheus ($PROMETHEUS_USERNAME): $PROMETHEUS_PASSWORD"
     fi
     
     if [ -n "$LOKI_PASSWORD" ]; then
-        echo "Loki: $LOKI_PASSWORD"
+        echo "Loki ($LOKI_USERNAME): $LOKI_PASSWORD"
     fi
     
     if [ -n "$NODE_EXPORTER_PASSWORD" ]; then
-        echo "Node Exporter: $NODE_EXPORTER_PASSWORD"
+        echo "Node Exporter ($NODE_EXPORTER_USERNAME): $NODE_EXPORTER_PASSWORD"
     fi
     
     if [ -n "$PUSHGATEWAY_PASSWORD" ]; then
-        echo "Pushgateway: $PUSHGATEWAY_PASSWORD"
+        echo "Pushgateway ($PUSHGATEWAY_USERNAME): $PUSHGATEWAY_PASSWORD"
     fi
     
     if [ -n "$FAIL2BAN_EXPORTER_PASSWORD" ]; then
-        echo "Fail2ban Exporter: $FAIL2BAN_EXPORTER_PASSWORD"
+        echo "Fail2ban Exporter ($FAIL2BAN_EXPORTER_USERNAME): $FAIL2BAN_EXPORTER_PASSWORD"
     fi
     
     if [ -n "$ROOT_SSH_PASSWORD" ]; then
-        echo "Root SSH: $ROOT_SSH_PASSWORD"
+        echo "Root SSH (root): $ROOT_SSH_PASSWORD"
     else
-        echo "Root SSH: не изменялся"
+        echo "Root SSH (root): не изменялся"
     fi
     echo ""
 }
@@ -653,8 +640,6 @@ show_all_passwords() {
 # ============================================================================
 
 restart_all_services() {
-    log_info "Перезапуск всех установленных служб..."
-    
     # Список служб для перезапуска
     local services=(
         "ssh"
@@ -677,36 +662,17 @@ restart_all_services() {
     for service in "${services[@]}"; do
         if systemctl list-unit-files | grep -q "^$service.service"; then
             if systemctl is-active --quiet "$service" 2>/dev/null; then
-                log_info "Перезапуск службы: $service"
-                systemctl restart "$service" 2>/dev/null || log_warn "Не удалось перезапустить $service"
+                systemctl restart "$service" 2>/dev/null || true
             elif systemctl is-enabled --quiet "$service" 2>/dev/null; then
-                log_info "Запуск службы: $service"
-                systemctl start "$service" 2>/dev/null || log_warn "Не удалось запустить $service"
+                systemctl start "$service" 2>/dev/null || true
             fi
         fi
     done
     
     # Специальная обработка для HestiaCP
     if command -v hestia >/dev/null 2>&1; then
-        log_info "Перезапуск HestiaCP..."
-        systemctl restart admin 2>/dev/null || systemctl restart hestia 2>/dev/null || log_warn "Не удалось перезапустить HestiaCP"
+        systemctl restart admin 2>/dev/null || systemctl restart hestia 2>/dev/null || true
     fi
-    
-    # Проверка статуса основных служб
-    log_info "Проверка статуса основных служб..."
-    local critical_services=("ssh" "sshd" "fail2ban" "admin" "hestia")
-    
-    for service in "${critical_services[@]}"; do
-        if systemctl list-unit-files | grep -q "^$service.service"; then
-            if systemctl is-active --quiet "$service" 2>/dev/null; then
-                log_ok "✅ $service работает"
-            else
-                log_warn "⚠️ $service не работает"
-            fi
-        fi
-    done
-    
-    log_ok "Перезапуск служб завершен"
 }
 
 # Функция для сохранения всех паролей в файл
@@ -843,10 +809,6 @@ EOF
 
     cat >> "$credentials_file" << EOF
 
-📚 Документация: $PROJECT_ROOT/docs/
-🔧 Конфигурация: $PROJECT_ROOT/web/configs/
-🛡️ Безопасность: $PROJECT_ROOT/system/security/
-
 ===============================================
 EOF
 
@@ -951,10 +913,6 @@ main_installation() {
     
     # Сохранение всех учетных данных в файл
     save_all_credentials
-    
-    echo "📚 Документация: $PROJECT_ROOT/docs/"
-    echo "🔧 Конфигурация: $PROJECT_ROOT/web/configs/"
-    echo "🛡️ Безопасность: $PROJECT_ROOT/system/security/"
     
     # Очистка временных файлов
     rm -f "$INSTALL_STAGE_FILE" "$HESTIA_INSTALLED_FLAG" "$REBOOT_REQUIRED_FLAG"
@@ -1446,9 +1404,6 @@ install_monitoring_only() {
     # Отображение всех сгенерированных паролей
     show_all_passwords
     
-    echo "📚 Документация: $PROJECT_ROOT/docs/"
-    echo "🔧 Конфигурация: $PROJECT_ROOT/web/configs/"
-    echo "🛡️ Безопасность: $PROJECT_ROOT/system/security/"
     echo ""
     echo "⚠️ ВНИМАНИЕ: HestiaCP не установлен из-за конфликтов пакетов"
     echo "   Для установки HestiaCP используйте чистый сервер или"
