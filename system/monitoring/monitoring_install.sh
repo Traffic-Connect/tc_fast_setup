@@ -10,6 +10,14 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 source "$PROJECT_ROOT/core/configs/configuration.sh"
 source "$PROJECT_ROOT/core/utils/common.sh"
 
+# Экспорт переменных паролей для использования в скрипте
+export GRAFANA_ADMIN_PASSWORD
+export PROMETHEUS_PASSWORD
+export LOKI_PASSWORD
+export NODE_EXPORTER_PASSWORD
+export PUSHGATEWAY_PASSWORD
+export FAIL2BAN_EXPORTER_PASSWORD
+
 install_monitoring() {
     log_info "=== ЭТАП 4: Установка системы мониторинга ==="
     

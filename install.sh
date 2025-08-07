@@ -84,6 +84,15 @@ generate_secure_passwords() {
         PUSHGATEWAY_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
         FAIL2BAN_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
     fi
+    
+    # Экспортируем все пароли для использования в других скриптах
+    export HESTIA_PASSWORD
+    export GRAFANA_ADMIN_PASSWORD
+    export PROMETHEUS_PASSWORD
+    export LOKI_PASSWORD
+    export NODE_EXPORTER_PASSWORD
+    export PUSHGATEWAY_PASSWORD
+    export FAIL2BAN_EXPORTER_PASSWORD
 }
 
 # ============================================================================
@@ -191,57 +200,71 @@ show_all_passwords() {
     
     echo "🔐 SSH ДОСТУП:"
     echo "  👤 Логин: root"
-    echo "  🔑 Пароль: $ROOT_SSH_PASSWORD"
+    echo "  🔑 Пароль: ${ROOT_SSH_PASSWORD:-'не изменялся'}"
     echo "  📝 Тип: Парольная аутентификация"
     echo ""
     
-    echo "👨‍💼 HESTIACP (Административная панель):"
-    echo "  🌐 URL: https://$server_ip:$ADMIN_PORT"
-    echo "  👤 Логин: $HESTIA_USERNAME"
-    echo "  🔑 Пароль: $HESTIA_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$HESTIA_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$HESTIA_PASSWORD" ]; then
+        echo "👨‍💼 HESTIACP (Административная панель):"
+        echo "  🌐 URL: https://$server_ip:$ADMIN_PORT"
+        echo "  👤 Логин: $HESTIA_USERNAME"
+        echo "  🔑 Пароль: $HESTIA_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$HESTIA_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "📊 GRAFANA (Мониторинг):"
-    echo "  🌐 URL: http://$server_ip:$GRAFANA_PORT"
-    echo "  👤 Логин: $GRAFANA_USERNAME"
-    echo "  🔑 Пароль: $GRAFANA_ADMIN_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$GRAFANA_ADMIN_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$GRAFANA_ADMIN_PASSWORD" ]; then
+        echo "📊 GRAFANA (Мониторинг):"
+        echo "  🌐 URL: http://$server_ip:$GRAFANA_PORT"
+        echo "  👤 Логин: $GRAFANA_USERNAME"
+        echo "  🔑 Пароль: $GRAFANA_ADMIN_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$GRAFANA_ADMIN_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "📈 PROMETHEUS (Метрики):"
-    echo "  🌐 URL: http://$server_ip:$PROMETHEUS_PORT"
-    echo "  👤 Логин: $PROMETHEUS_USERNAME"
-    echo "  🔑 Пароль: $PROMETHEUS_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$PROMETHEUS_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$PROMETHEUS_PASSWORD" ]; then
+        echo "📈 PROMETHEUS (Метрики):"
+        echo "  🌐 URL: http://$server_ip:$PROMETHEUS_PORT"
+        echo "  👤 Логин: $PROMETHEUS_USERNAME"
+        echo "  🔑 Пароль: $PROMETHEUS_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$PROMETHEUS_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "📝 LOKI (Логи):"
-    echo "  🌐 URL: http://$server_ip:$LOKI_PORT"
-    echo "  👤 Логин: $LOKI_USERNAME"
-    echo "  🔑 Пароль: $LOKI_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$LOKI_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$LOKI_PASSWORD" ]; then
+        echo "📝 LOKI (Логи):"
+        echo "  🌐 URL: http://$server_ip:$LOKI_PORT"
+        echo "  👤 Логин: $LOKI_USERNAME"
+        echo "  🔑 Пароль: $LOKI_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$LOKI_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "🖥️ NODE EXPORTER (Системные метрики):"
-    echo "  🌐 URL: http://$server_ip:$NODE_EXPORTER_PORT"
-    echo "  👤 Логин: $NODE_EXPORTER_USERNAME"
-    echo "  🔑 Пароль: $NODE_EXPORTER_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$NODE_EXPORTER_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$NODE_EXPORTER_PASSWORD" ]; then
+        echo "🖥️ NODE EXPORTER (Системные метрики):"
+        echo "  🌐 URL: http://$server_ip:$NODE_EXPORTER_PORT"
+        echo "  👤 Логин: $NODE_EXPORTER_USERNAME"
+        echo "  🔑 Пароль: $NODE_EXPORTER_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$NODE_EXPORTER_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "📤 PUSHGATEWAY (Отправка метрик):"
-    echo "  🌐 URL: http://$server_ip:$PUSHGATEWAY_PORT"
-    echo "  👤 Логин: $PUSHGATEWAY_USERNAME"
-    echo "  🔑 Пароль: $PUSHGATEWAY_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$PUSHGATEWAY_PASSWORD" | cut -d' ' -f1)"
-    echo ""
+    if [ -n "$PUSHGATEWAY_PASSWORD" ]; then
+        echo "📤 PUSHGATEWAY (Отправка метрик):"
+        echo "  🌐 URL: http://$server_ip:$PUSHGATEWAY_PORT"
+        echo "  👤 Логин: $PUSHGATEWAY_USERNAME"
+        echo "  🔑 Пароль: $PUSHGATEWAY_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$PUSHGATEWAY_PASSWORD" | cut -d' ' -f1)"
+        echo ""
+    fi
     
-    echo "🛡️ FAIL2BAN EXPORTER (Мониторинг безопасности):"
-    echo "  🌐 URL: http://$server_ip:$FAIL2BAN_EXPORTER_PORT"
-    echo "  👤 Логин: $FAIL2BAN_EXPORTER_USERNAME"
-    echo "  🔑 Пароль: $FAIL2BAN_EXPORTER_PASSWORD"
-    echo "  📊 Сложность: $(assess_password_strength "$FAIL2BAN_EXPORTER_PASSWORD" | cut -d' ' -f1)"
+    if [ -n "$FAIL2BAN_EXPORTER_PASSWORD" ]; then
+        echo "🛡️ FAIL2BAN EXPORTER (Мониторинг безопасности):"
+        echo "  🌐 URL: http://$server_ip:$FAIL2BAN_EXPORTER_PORT"
+        echo "  👤 Логин: $FAIL2BAN_EXPORTER_USERNAME"
+        echo "  🔑 Пароль: $FAIL2BAN_EXPORTER_PASSWORD"
+        echo "  📊 Сложность: $(assess_password_strength "$FAIL2BAN_EXPORTER_PASSWORD" | cut -d' ' -f1)"
+    fi
     echo ""
     
     echo "⚠️ ВАЖНЫЕ НАПОМИНАНИЯ:"
