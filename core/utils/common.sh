@@ -493,6 +493,83 @@ safe_rm() {
     [ -e "$1" ] && rm -rf "$1" 
 }
 
+# ============================================================================
+# ОТОБРАЖЕНИЕ ДАННЫХ ДЛЯ ВХОДА
+# ============================================================================
 
-
- 
+show_access_credentials() {
+    echo ""
+    echo "🔐 ДАННЫЕ ДЛЯ ВХОДА В СИСТЕМУ"
+    echo "================================================"
+    
+    local server_ip=$(hostname -I | awk '{print $1}')
+    
+    # HestiaCP
+    if [ -f "/usr/local/admin/bin/admin" ] || systemctl is-active --quiet admin 2>/dev/null; then
+        echo "👨‍💼 АДМИНИСТРАТИВНАЯ ПАНЕЛЬ (HestiaCP):"
+        echo "  🌐 URL: https://$server_ip:$ADMIN_PORT"
+        echo "  👤 Логин: $HESTIA_USERNAME"
+        echo "  🔑 Пароль: $HESTIA_PASSWORD"
+        echo ""
+    fi
+    
+    # Grafana
+    if systemctl is-active --quiet grafana-server 2>/dev/null; then
+        echo "📊 GRAFANA (Мониторинг):"
+        echo "  🌐 URL: http://$server_ip:$GRAFANA_PORT"
+        echo "  👤 Логин: admin"
+        echo "  🔑 Пароль: $GRAFANA_ADMIN_PASSWORD"
+        echo ""
+    fi
+    
+    # Prometheus
+    if systemctl is-active --quiet prometheus 2>/dev/null; then
+        echo "📈 PROMETHEUS (Метрики):"
+        echo "  🌐 URL: http://$server_ip:$PROMETHEUS_PORT"
+        echo "  📝 Статус: ✅ Работает"
+        echo ""
+    fi
+    
+    # Node Exporter
+    if systemctl is-active --quiet node_exporter 2>/dev/null; then
+        echo "🖥️ NODE EXPORTER (Системные метрики):"
+        echo "  🌐 URL: http://$server_ip:$NODE_EXPORTER_PORT"
+        echo "  📝 Статус: ✅ Работает"
+        echo ""
+    fi
+    
+    # Loki
+    if systemctl is-active --quiet loki 2>/dev/null; then
+        echo "📝 LOKI (Логи):"
+        echo "  🌐 URL: http://$server_ip:$LOKI_PORT"
+        echo "  📝 Статус: ✅ Работает"
+        echo ""
+    fi
+    
+    echo "🔧 ДОПОЛНИТЕЛЬНЫЕ СЕРВИСЫ:"
+    echo "  📊 Pushgateway: http://$server_ip:$PUSHGATEWAY_PORT"
+    echo "  🛡️ Fail2ban Exporter: http://$server_ip:$FAIL2BAN_EXPORTER_PORT"
+    echo ""
+    
+    echo "📋 СТАТУС УСТАНОВКИ:"
+    echo "  ⏰ Время установки: $(date)"
+    echo "  🖥️ Сервер: $(hostname)"
+    echo "  🌐 IP адрес: $server_ip"
+    echo ""
+    
+    echo "⚠️ ВАЖНО:"
+    echo "  • Измените пароли после первого входа"
+    echo "  • Настройте файрвол для безопасности"
+    echo "  • Регулярно обновляйте систему"
+    echo ""
+    
+    echo "📁 ФАЙЛЫ КОНФИГУРАЦИИ:"
+    echo "  🔧 Основная конфигурация: $PROJECT_ROOT/core/configs/configuration.sh"
+    echo "  🛡️ Политика безопасности: $PROJECT_ROOT/system/security/security_policy.sh"
+    echo "  📚 Документация: $PROJECT_ROOT/docs/"
+    echo ""
+    
+    echo "================================================"
+    echo "🎉 Установка завершена успешно!"
+    echo "================================================"
+}

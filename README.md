@@ -54,6 +54,7 @@ chmod +x force_update.sh
 │       └── 📄 test_security.sh       # Тест безопасности
 ├── 📄 install.sh                     # 🚀 Точка входа
 ├── 📄 force_update.sh                # 🔄 Принудительное обновление
+├── 📄 show_credentials.sh            # 🔐 Данные для входа
 └── 📄 QUICK_FIX.md                   # 🚨 Быстрое исправление
 ```
 
@@ -78,6 +79,11 @@ chmod +x force_update.sh
 ### Тестирование безопасности
 ```bash
 ./docs/examples/test_security.sh
+```
+
+### Просмотр данных для входа
+```bash
+./show_credentials.sh
 ```
 
 ### Настройка конфигурации

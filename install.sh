@@ -171,6 +171,10 @@ main_installation() {
     
     echo "================================================"
     log_ok "Установка Traffic Connect Server завершена успешно!"
+    
+    # Отображение данных для входа
+    show_access_credentials
+    
     echo "📚 Документация: $PROJECT_ROOT/docs/"
     echo "🔧 Конфигурация: $PROJECT_ROOT/web/configs/"
     echo "🛡️ Безопасность: $PROJECT_ROOT/system/security/"
