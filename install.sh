@@ -46,7 +46,7 @@ install_base_packages() {
     # Использование модульного установщика базовой системы
     source "$PROJECT_ROOT/core/installers/main_install.sh"
     
-    if main_installation; then
+    if install_base_system; then
         log_ok "Базовые пакеты установлены"
         return 0
     else

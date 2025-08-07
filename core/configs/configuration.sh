@@ -157,5 +157,5 @@ PASSWORD_COMPLEXITY="high"  # low, medium, high
 if [ -f "$(dirname "$0")/security_policy.sh" ]; then
     source "$(dirname "$(dirname "$0")")/system/security/security_policy.sh"
 else
-    log_warn "Файл политики безопасности не найден: security_policy.sh"
+    echo "[ВНИМАНИЕ] Файл политики безопасности не найден: security_policy.sh"
 fi
