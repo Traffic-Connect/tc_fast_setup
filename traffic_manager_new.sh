@@ -448,53 +448,97 @@ main_installation() {
         # Полная установка с нуля
         log_info "Начинаем полную установку с нуля..."
         
-        # Генерация паролей для всех сервисов
-        generate_secure_passwords
+        # ПРОВЕРКА HESTIACP В САМОМ НАЧАЛЕ
+        log_step "ПРОВЕРКА УСТАНОВКИ HESTIACP"
+        log_info "Проверяем, не установлен ли уже HestiaCP..."
         
-        # Этап 1: Системные компоненты
-        import_module "system_install"
-        install_system_components
+        local hestia_already_installed=false
         
-        # Этап 2: Установка HestiaCP (В ПЕРВУЮ ОЧЕРЕДЬ)
-        log_step "ПРИОРИТЕТНАЯ УСТАНОВКА HESTIACP"
-        import_module "hestia_install"
-        install_hestia
-        
-        # Улучшенная проверка успешности установки HestiaCP
-        log_info "Проверка успешности установки HestiaCP..."
-        
-        local hestia_success=false
-        
-        # Проверка основных компонентов
+        # Проверка основных компонентов HestiaCP
         if [ -f "/usr/local/admin/bin/admin" ]; then
             log_info "✅ Основной бинарный файл HestiaCP найден"
-            hestia_success=true
+            hestia_already_installed=true
         fi
         
         if [ -d "/usr/local/hestia" ]; then
             log_info "✅ Директория конфигурации HestiaCP найдена"
-            hestia_success=true
+            hestia_already_installed=true
         fi
         
-        # Проверка службы
         if is_service_active "admin"; then
             log_info "✅ Служба HestiaCP работает"
-            hestia_success=true
+            hestia_already_installed=true
         fi
         
-        # Проверка веб-интерфейса
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 | grep -q "200\|302"; then
             log_info "✅ Веб-интерфейс HestiaCP доступен"
-            hestia_success=true
+            hestia_already_installed=true
         fi
         
-        if [ "$hestia_success" = false ]; then
-            log_err "❌ Критическая ошибка: HestiaCP не установлен корректно"
-            log_err "Установка прервана. HestiaCP должен быть установлен в первую очередь."
-            exit 1
+        if id "TrafficAdmin" &>/dev/null; then
+            log_info "✅ Пользователь TrafficAdmin существует"
+            hestia_already_installed=true
         fi
         
-        log_ok "✅ HestiaCP установлен успешно"
+        # Если HestiaCP уже установлен
+        if [ "$hestia_already_installed" = true ]; then
+            log_ok "✅ HestiaCP уже установлен и работает"
+            log_info "Пропускаем установку HestiaCP и переходим к следующим компонентам"
+            echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
+            
+            # Отключение Composer если еще не отключен
+            if [ -f "/usr/local/hestia/bin/v-add-user-composer" ]; then
+                log_info "Отключение Composer..."
+                import_module "hestia_install"
+                disable_composer_installation
+            fi
+            
+            # Переходим к следующим этапам
+            log_step "УСТАНОВКА ДОПОЛНИТЕЛЬНЫХ КОМПОНЕНТОВ"
+            
+            # Генерация паролей для всех сервисов
+            generate_secure_passwords
+            
+            # Этап 1: Системные компоненты
+            import_module "system_install"
+            install_system_components
+            
+            # Этап 2: Безопасность
+            import_module "security_install"
+            setup_security_from_module
+            
+            # Этап 3: Мониторинг
+            import_module "monitoring_install"
+            install_monitoring
+            
+            # Этап 4: Шаблоны
+            import_module "templates_install"
+            install_templates
+            
+        else
+            # HestiaCP не установлен, выполняем полную установку
+            log_info "HestiaCP не найден, начинаем полную установку..."
+            
+            # Генерация паролей для всех сервисов
+            generate_secure_passwords
+            
+            # Этап 1: Системные компоненты
+            import_module "system_install"
+            install_system_components
+            
+            # Этап 2: Установка HestiaCP (В ПЕРВУЮ ОЧЕРЕДЬ)
+            log_step "ПРИОРИТЕТНАЯ УСТАНОВКА HESTIACP"
+            import_module "hestia_install"
+            install_hestia
+            
+            # Проверка успешности установки HestiaCP
+            if [ $? -ne 0 ]; then
+                log_err "❌ Критическая ошибка: HestiaCP не установлен"
+                log_err "Установка прервана. HestiaCP должен быть установлен в первую очередь."
+                exit 1
+            fi
+            
+            log_ok "✅ HestiaCP установлен успешно"
         
         # Проверка, требуется ли перезагрузка
         if [ -f "$REBOOT_REQUIRED_FLAG" ]; then

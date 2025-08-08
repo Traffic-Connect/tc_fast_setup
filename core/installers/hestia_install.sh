@@ -255,66 +255,6 @@ install_hestia() {
         return 1
     fi
     
-    # Улучшенная проверка установки HestiaCP
-    log_info "Проверка установки HestiaCP..."
-    
-    local hestia_installed=false
-    
-    # Проверка основных компонентов HestiaCP
-    if [ -f "/usr/local/admin/bin/admin" ]; then
-        log_info "✅ Основной бинарный файл HestiaCP найден"
-        hestia_installed=true
-    fi
-    
-    if [ -d "/usr/local/admin" ]; then
-        log_info "✅ Директория HestiaCP найдена"
-        hestia_installed=true
-    fi
-    
-    if [ -d "/usr/local/hestia" ]; then
-        log_info "✅ Директория конфигурации HestiaCP найдена"
-        hestia_installed=true
-    fi
-    
-    # Проверка службы HestiaCP
-    if is_service_active "admin"; then
-        log_info "✅ Служба HestiaCP работает"
-        hestia_installed=true
-    fi
-    
-    # Проверка веб-интерфейса
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 | grep -q "200\|302"; then
-        log_info "✅ Веб-интерфейс HestiaCP доступен"
-        hestia_installed=true
-    fi
-    
-    # Проверка пользователя HestiaCP
-    if id "$HESTIA_USERNAME" &>/dev/null; then
-        log_info "✅ Пользователь $HESTIA_USERNAME существует"
-        hestia_installed=true
-    fi
-    
-    # Проверка файла установки
-    if [ -f "/usr/local/hestia/install.log" ]; then
-        log_info "✅ Лог установки HestiaCP найден"
-        hestia_installed=true
-    fi
-    
-    # Если HestiaCP установлен
-    if [ "$hestia_installed" = true ]; then
-        log_ok "✅ HestiaCP уже установлен и работает"
-        log_info "Пропускаем установку HestiaCP и переходим к следующим компонентам"
-        echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
-        
-        # Отключение Composer если еще не отключен
-        if [ -f "/usr/local/hestia/bin/v-add-user-composer" ]; then
-            log_info "Отключение Composer..."
-            disable_composer_installation
-        fi
-        
-        return 0
-    fi
-    
     # Проверка, не выполнен ли уже этот этап
     if [ -f "$INSTALL_STAGE_FILE" ] && grep -q "hestia_completed" "$INSTALL_STAGE_FILE"; then
         log_warn "HestiaCP уже установлен в предыдущем запуске, пропускаем"
