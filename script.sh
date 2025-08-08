@@ -130,7 +130,23 @@ echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение установки..."
 show_progress 4 4
 check_error "Установка базовых пакетов"
 
-# 3. Установка Hestia CP
+# 3. Установка Composer (требуется для Hestia CP)
+print_header "📦 УСТАНОВКА COMPOSER"
+{
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer..."
+    curl -sS https://getcomposer.org/installer | php
+    mv composer.phar /usr/local/bin/composer
+    chmod +x /usr/local/bin/composer
+    
+    # Устанавливаем зависимости PHP
+    apt install -y php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm
+    
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Настройка Composer..."
+    composer --version
+} > /dev/null 2>&1
+check_error "Установка Composer"
+
+# 4. Установка Hestia CP
 print_header "🌐 УСТАНОВКА HESTIA CP"
 {
     # Расширенная проверка наличия Hestia CP
@@ -296,11 +312,25 @@ print_header "🌐 УСТАНОВКА HESTIA CP"
         fi
         
         rm -f hst-install.sh /tmp/hestia_install.log
+        
+        # Устанавливаем зависимости Hestia CP
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка зависимостей Hestia CP..."
+        if [ -f "/usr/local/hestia/bin/v-add-sys-dependencies" ]; then
+            /usr/local/hestia/bin/v-add-sys-dependencies
+        fi
+        
+        # Устанавливаем Composer зависимости для Hestia CP
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer зависимостей..."
+        if [ -d "/usr/local/hestia/web" ]; then
+            cd /usr/local/hestia/web
+            composer install --no-dev --optimize-autoloader
+            cd - > /dev/null
+        fi
     fi
 }
 check_error "Установка Hestia CP"
 
-# 4. Firewall configuration (improved version)
+# 5. Firewall configuration (improved version)
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 
 # Check nftables availability, otherwise use iptables
@@ -488,7 +518,7 @@ systemctl restart loki 2>/dev/null || true
 systemctl restart pushgateway 2>/dev/null || true
 systemctl restart node_exporter 2>/dev/null || true
 
-# 5. Настройка fail2ban
+# 6. Настройка fail2ban
 print_header "🛡️ НАСТРОЙКА FAIL2BAN"
 cat > /etc/fail2ban/jail.local <<EOL
 [DEFAULT]
@@ -550,7 +580,7 @@ EOL
 systemctl enable --now fail2ban
 check_error "Настройка fail2ban"
 
-# 6. Установка Grafana
+# 7. Установка Grafana
 print_header "📊 УСТАНОВКА GRAFANA"
 {
     wget https://dl.grafana.com/oss/release/grafana_10.4.3_amd64.deb -O /tmp/grafana.deb
@@ -588,7 +618,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Grafana"
 
-# 7. Установка Prometheus
+# 8. Установка Prometheus
 print_header "📈 УСТАНОВКА PROMETHEUS"
 {
     useradd --no-create-home --shell /bin/false prometheus 2>/dev/null || true
@@ -665,7 +695,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Prometheus"
 
-# 8. Установка Node Exporter
+# 9. Установка Node Exporter
 print_header "🖥️ УСТАНОВКА NODE EXPORTER"
 {
     wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
@@ -694,7 +724,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Node Exporter"
 
-# 9. Установка Pushgateway
+# 10. Установка Pushgateway
 print_header "📤 УСТАНОВКА PUSHGATEWAY"
 {
     wget https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
@@ -733,7 +763,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Pushgateway"
 
-# 10. Установка Loki и Promtail
+# 11. Установка Loki и Promtail
 print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
 {
     LOKI_VERSION="2.9.1"
@@ -881,7 +911,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Loki и Promtail"
 
-# 11. Настройка экспортера для fail2ban
+# 12. Настройка экспортера для fail2ban
 print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
 {
     apt-get install -y python3-prometheus-client
@@ -930,7 +960,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Настройка мониторинга fail2ban"
 
-# 12. Настройка Grafana
+# 13. Настройка Grafana
 print_header "⚙️ НАСТРОЙКА GRAFANA"
 {
     while ! systemctl is-active --quiet grafana-server; do
@@ -962,7 +992,7 @@ print_header "⚙️ НАСТРОЙКА GRAFANA"
 } > /dev/null 2>&1
 check_error "Настройка Grafana"
 
-# 13. Завершение установки
+# 14. Завершение установки
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения

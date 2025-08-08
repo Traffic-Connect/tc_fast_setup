@@ -116,10 +116,21 @@ sleep 1
 show_progress 4 4
 check_error "Установка базовых пакетов"
 
+print_header "📦 УСТАНОВКА COMPOSER"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer..."
+sleep 1
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка PHP зависимостей..."
+sleep 1
+check_error "Установка Composer"
+
 print_header "🌐 УСТАНОВКА HESTIA CP"
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Hestia CP..."
 sleep 1
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка компонентов..."
+sleep 1
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка зависимостей Hestia CP..."
+sleep 1
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer зависимостей..."
 sleep 1
 check_error "Установка Hestia CP"
 
