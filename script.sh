@@ -71,27 +71,43 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         echo -e "${BLUE}[Инфо] Hestia CP уже установлен. Пропускаем установку.${NC}"
         
         # Проверяем и запускаем службу если нужно
-        if systemctl is-active --quiet hestia; then
-            echo -e "${GREEN}Служба Hestia уже работает${NC}"
-        else
-            echo -e "${BLUE}[Инфо] Запуск службы Hestia...${NC}"
-            systemctl start hestia
-            sleep 5
-            if systemctl is-active --quiet hestia; then
-                echo -e "${GREEN}Служба запущена успешно${NC}"
+        # Проверяем различные варианты имен служб Hestia
+        HESTIA_SERVICE=""
+        for service_name in hestia hestia-web hestia-api hestia-cp; do
+            if systemctl list-unit-files | grep -q "$service_name"; then
+                HESTIA_SERVICE="$service_name"
+                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
+                break
+            fi
+        done
+        
+        if [ -n "$HESTIA_SERVICE" ]; then
+            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
             else
-                echo -e "${YELLOW}Предупреждение: Не удалось запустить службу Hestia${NC}"
-                echo -e "${BLUE}[Инфо] Попытка перезапуска...${NC}"
-                systemctl restart hestia
+                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
+                systemctl start "$HESTIA_SERVICE"
                 sleep 5
-                if systemctl is-active --quiet hestia; then
-                    echo -e "${GREEN}Служба перезапущена успешно${NC}"
+                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
                 else
-                    echo -e "${YELLOW}Предупреждение: Служба Hestia не запущена${NC}"
-                    echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
-                    systemctl status hestia --no-pager || true
+                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
+                    echo -e "${BLUE}[Инфо] Попытка перезапуска...${NC}"
+                    systemctl restart "$HESTIA_SERVICE"
+                    sleep 5
+                    if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                        echo -e "${GREEN}Служба $HESTIA_SERVICE перезапущена успешно${NC}"
+                    else
+                        echo -e "${YELLOW}Предупреждение: Служба $HESTIA_SERVICE не запущена${NC}"
+                        echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                        systemctl status "$HESTIA_SERVICE" --no-pager || true
+                    fi
                 fi
             fi
+        else
+            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
+            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
+            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
         fi
     else
         echo -e "${BLUE}[Инфо] Hestia CP не найден. Начинаем установку...${NC}"
@@ -99,8 +115,12 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
         
         echo -e "${BLUE}[Инфо] Запуск установки (это может занять несколько минут)...${NC}"
+        # Получаем реальный hostname системы
+        SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+        echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
+        
         # Запускаем установку и перехватываем ошибку если Hestia уже установлен
-        if bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+        if bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
             echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
         else
             # Проверяем, была ли ошибка из-за уже установленного Hestia
@@ -114,18 +134,36 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         fi
         
         echo -e "${BLUE}[Инфо] Проверка работы службы...${NC}"
-        if systemctl is-active --quiet hestia; then
-            echo -e "${GREEN}Служба Hestia работает${NC}"
-        else
-            systemctl start hestia
-            sleep 5
-            if systemctl is-active --quiet hestia; then
-                echo -e "${GREEN}Служба запущена успешно${NC}"
-            else
-                echo -e "${YELLOW}Предупреждение: Не удалось запустить службу Hestia${NC}"
-                echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
-                systemctl status hestia --no-pager || true
+        
+        # Проверяем различные варианты имен служб Hestia
+        HESTIA_SERVICE=""
+        for service_name in hestia hestia-web hestia-api hestia-cp; do
+            if systemctl list-unit-files | grep -q "$service_name"; then
+                HESTIA_SERVICE="$service_name"
+                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
+                break
             fi
+        done
+        
+        if [ -n "$HESTIA_SERVICE" ]; then
+            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
+            else
+                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
+                systemctl start "$HESTIA_SERVICE"
+                sleep 5
+                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
+                else
+                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
+                    echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                    systemctl status "$HESTIA_SERVICE" --no-pager || true
+                fi
+            fi
+        else
+            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
+            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
+            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
         fi
         
         rm -f hst-install.sh /tmp/hestia_install.log
