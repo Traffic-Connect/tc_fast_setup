@@ -119,9 +119,13 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
         echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
         
+        # Генерируем случайный пароль высокой сложности для Hestia CP
+        HESTIA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+        echo -e "${BLUE}[Инфо] Сгенерирован пароль для Hestia CP: $HESTIA_PASSWORD${NC}"
+        
         # Запускаем установку с автоматическими ответами на вопросы
         echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
-        if yes | bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficHestia' --email 'info@traffic.com' --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
             # Проверяем успешность установки
             if grep -q "Hestia install detected" /tmp/hestia_install.log; then
                 echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
@@ -744,15 +748,17 @@ echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
         sleep 1
     done
 
-    grafana-cli admin reset-admin-password admin
+    # Генерируем пароль для Grafana
+    GRAFANA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
 
-    until curl -u admin:admin -X POST -H "Content-Type: application/json" \
+    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
       -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy"}' \
       http://localhost:3000/api/datasources; do
         sleep 2
     done
 
-    until curl -u admin:admin -X POST -H "Content-Type: application/json" \
+    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
       -d '{"name":"Loki","type":"loki","url":"http://localhost:3100","access":"proxy"}' \
       http://localhost:3000/api/datasources; do
         sleep 2
@@ -760,7 +766,7 @@ echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
 
     DASHBOARD_IDS="1860 11074 13659 13639"
     for DASH in $DASHBOARD_IDS; do
-        curl -u admin:admin -X POST -H "Content-Type: application/json" \
+        curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
           -d "{\"dashboard\":$(curl -s https://grafana.com/api/dashboards/$DASH/revisions/latest/download),\"overwrite\":true}" \
           http://localhost:3000/api/dashboards/import
     done
@@ -776,9 +782,9 @@ echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):9090"
 echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):3100"
 echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
 echo -e "\n${GREEN}Данные для входа:${NC}"
-echo -e "Hestia CP:  TrafficAdmin / AdMiNiStRaToR"
-echo -e "Grafana:    admin / admin"
-echo -e "phpMyAdmin:  TrafficAdmin / AdMiNiStRaToR"
+echo -e "Hestia CP:  TrafficHestia / $HESTIA_PASSWORD"
+echo -e "Grafana:    TrafficGrafana / $GRAFANA_PASSWORD"
+echo -e "phpMyAdmin: TrafficHestia / $HESTIA_PASSWORD"
 echo -e "\n${GREEN}SSH доступ:${NC}"
 echo -e "SSH:        root / (ваш текущий пароль)"
 echo -e "\n${GREEN}Дополнительная информация:${NC}"
