@@ -143,9 +143,22 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
                 echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
             fi
         else
-            # Проверяем, была ли ошибка из-за уже установленного Hestia
+            # Проверяем различные типы ошибок
             if grep -q "Hestia install detected" /tmp/hestia_install.log; then
                 echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
+            elif grep -q "Error: Download composer installer" /tmp/hestia_install.log; then
+                echo -e "${YELLOW}Предупреждение: Ошибка загрузки Composer installer${NC}"
+                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
+                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
+                    echo -e "${GREEN}Hestia CP установлен успешно (несмотря на ошибку Composer)${NC}"
+                    echo -e "${BLUE}[Инфо] Composer можно установить позже вручную${NC}"
+                else
+                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
+                    cat /tmp/hestia_install.log
+                    exit 1
+                fi
+            elif grep -q "Congratulations" /tmp/hestia_install.log; then
+                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
             else
                 echo -e "${RED}Ошибка установки Hestia CP${NC}"
                 cat /tmp/hestia_install.log
@@ -184,6 +197,17 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
             echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
             echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
             systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
+        fi
+        
+        # Проверяем и устанавливаем Composer если нужно
+        if ! command -v composer >/dev/null 2>&1; then
+            echo -e "${BLUE}[Инфо] Установка Composer...${NC}"
+            curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+            if command -v composer >/dev/null 2>&1; then
+                echo -e "${GREEN}Composer установлен успешно${NC}"
+            else
+                echo -e "${YELLOW}Предупреждение: Не удалось установить Composer${NC}"
+            fi
         fi
         
         rm -f hst-install.sh /tmp/hestia_install.log
