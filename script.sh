@@ -121,7 +121,7 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         
         # Запускаем установку с автоматическими ответами на вопросы
         echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
-        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
             # Проверяем успешность установки
             if grep -q "Hestia install detected" /tmp/hestia_install.log; then
                 echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
