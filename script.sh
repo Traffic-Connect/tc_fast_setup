@@ -119,9 +119,25 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
         echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
         
-        # Запускаем установку и перехватываем ошибку если Hestia уже установлен
-        if bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
-            echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
+        # Запускаем установку с автоматическими ответами на вопросы
+        echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
+        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+            # Проверяем успешность установки
+            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
+                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
+            elif grep -q "Goodbye" /tmp/hestia_install.log; then
+                echo -e "${YELLOW}Предупреждение: Установка завершена досрочно${NC}"
+                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
+                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
+                    echo -e "${GREEN}Hestia CP установлен успешно${NC}"
+                else
+                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
+                    cat /tmp/hestia_install.log
+                    exit 1
+                fi
+            else
+                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
+            fi
         else
             # Проверяем, была ли ошибка из-за уже установленного Hestia
             if grep -q "Hestia install detected" /tmp/hestia_install.log; then
