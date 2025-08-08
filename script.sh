@@ -454,6 +454,9 @@ echo -e "${YELLOW}=== Установка Prometheus ===${NC}"
     chown prometheus:prometheus /usr/local/bin/prometheus
     chown prometheus:prometheus /usr/local/bin/promtool
 
+    # Генерируем пароль для Prometheus
+    PROMETHEUS_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    
     cat > /etc/prometheus/prometheus.yml <<EOF
 global:
   scrape_interval: 15s
@@ -478,6 +481,11 @@ scrape_configs:
       - targets: ['localhost:9091']
 EOF
 
+    # Создаем файл с паролем для Prometheus
+    echo "TrafficPrometheus:$PROMETHEUS_PASSWORD" > /etc/prometheus/web.yml
+    chown prometheus:prometheus /etc/prometheus/web.yml
+    chmod 600 /etc/prometheus/web.yml
+
     cat > /etc/systemd/system/prometheus.service <<EOF
 [Unit]
 Description=Prometheus Monitoring
@@ -491,7 +499,8 @@ ExecStart=/usr/local/bin/prometheus \\
     --config.file=/etc/prometheus/prometheus.yml \\
     --storage.tsdb.path=/var/lib/prometheus \\
     --web.listen-address=0.0.0.0:9090 \\
-    --web.enable-lifecycle
+    --web.enable-lifecycle \\
+    --web.config.file=/etc/prometheus/web.yml
 
 Restart=always
 RestartSec=3
@@ -545,6 +554,14 @@ echo -e "${YELLOW}=== Установка Pushgateway ===${NC}"
     useradd --no-create-home --shell /bin/false pushgateway
     chown pushgateway:pushgateway /usr/local/bin/pushgateway
 
+    # Генерируем пароль для Pushgateway
+    PUSHGATEWAY_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    
+    # Создаем файл с паролем для Pushgateway
+    echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
+    chown pushgateway:pushgateway /etc/pushgateway/web.yml
+    chmod 600 /etc/pushgateway/web.yml
+
     cat > /etc/systemd/system/pushgateway.service <<EOF
 [Unit]
 Description=Prometheus Pushgateway
@@ -554,7 +571,8 @@ After=network.target
 User=pushgateway
 Group=pushgateway
 ExecStart=/usr/local/bin/pushgateway \\
-    --web.listen-address=:9091
+    --web.listen-address=:9091 \\
+    --web.config.file=/etc/pushgateway/web.yml
 
 [Install]
 WantedBy=multi-user.target
@@ -571,6 +589,9 @@ echo -e "${YELLOW}=== Установка Loki и Promtail ===${NC}"
 {
     LOKI_VERSION="2.9.1"
     
+    # Генерируем пароль для Loki
+    LOKI_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    
     # Установка Loki
     wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip
     unzip /tmp/loki.zip -d /tmp/
@@ -581,8 +602,24 @@ echo -e "${YELLOW}=== Установка Loki и Promtail ===${NC}"
     mkdir -p /etc/loki /var/lib/loki
     chown loki:loki /var/lib/loki
 
+    # Создаем файл с пользователями для Loki
+    cat > /etc/loki/users.yaml <<EOF
+users:
+  - username: TrafficLoki
+    password: $LOKI_PASSWORD
+    roles:
+      - read
+      - write
+EOF
+    chown loki:loki /etc/loki/users.yaml
+    chmod 600 /etc/loki/users.yaml
+
     cat > /etc/loki/loki-config.yaml <<EOF
-auth_enabled: false
+auth_enabled: true
+
+auth:
+  basic_auth:
+    users_file: /etc/loki/users.yaml
 
 server:
   http_listen_port: 3100
@@ -782,9 +819,15 @@ echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):9090"
 echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):3100"
 echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
 echo -e "\n${GREEN}Данные для входа:${NC}"
+# Генерируем пароль для phpMyAdmin
+PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+
 echo -e "Hestia CP:  TrafficHestia / $HESTIA_PASSWORD"
 echo -e "Grafana:    TrafficGrafana / $GRAFANA_PASSWORD"
-echo -e "phpMyAdmin: TrafficHestia / $HESTIA_PASSWORD"
+echo -e "Prometheus: TrafficPrometheus / $PROMETHEUS_PASSWORD"
+echo -e "Loki:       TrafficLoki / $LOKI_PASSWORD"
+echo -e "Pushgateway: TrafficPushgateway / $PUSHGATEWAY_PASSWORD"
+echo -e "phpMyAdmin: TrafficPhpMyAdmin / $PHPMYADMIN_PASSWORD"
 echo -e "\n${GREEN}SSH доступ:${NC}"
 echo -e "SSH:        root / (ваш текущий пароль)"
 echo -e "\n${GREEN}Дополнительная информация:${NC}"
