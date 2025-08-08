@@ -48,8 +48,26 @@ check_error "Установка базовых пакетов"
 # 3. Установка Hestia CP
 echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
 {
-    # Проверяем, установлен ли уже Hestia CP
+    # Расширенная проверка наличия Hestia CP
+    HESTIA_INSTALLED=false
+    
+    # Проверяем различные признаки установки Hestia CP
     if [ -f "/usr/local/hestia/bin/v-list" ] || [ -f "/usr/local/hestia/bin/v-add-user" ]; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдены бинарные файлы Hestia CP${NC}"
+    fi
+    
+    if [ -d "/usr/local/hestia" ]; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдена директория Hestia CP${NC}"
+    fi
+    
+    if systemctl list-unit-files | grep -q hestia; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдена служба Hestia CP${NC}"
+    fi
+    
+    if [ "$HESTIA_INSTALLED" = true ]; then
         echo -e "${BLUE}[Инфо] Hestia CP уже установлен. Пропускаем установку.${NC}"
         
         # Проверяем и запускаем службу если нужно
@@ -70,15 +88,30 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
                     echo -e "${GREEN}Служба перезапущена успешно${NC}"
                 else
                     echo -e "${YELLOW}Предупреждение: Служба Hestia не запущена${NC}"
+                    echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                    systemctl status hestia --no-pager || true
                 fi
             fi
         fi
     else
+        echo -e "${BLUE}[Инфо] Hestia CP не найден. Начинаем установку...${NC}"
         echo -e "${BLUE}[Инфо] Загрузка установочного скрипта...${NC}"
         wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
         
         echo -e "${BLUE}[Инфо] Запуск установки (это может занять несколько минут)...${NC}"
-        bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRatoR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+        # Запускаем установку и перехватываем ошибку если Hestia уже установлен
+        if bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRatoR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+            echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
+        else
+            # Проверяем, была ли ошибка из-за уже установленного Hestia
+            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
+                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
+            else
+                echo -e "${RED}Ошибка установки Hestia CP${NC}"
+                cat /tmp/hestia_install.log
+                exit 1
+            fi
+        fi
         
         echo -e "${BLUE}[Инфо] Проверка работы службы...${NC}"
         if systemctl is-active --quiet hestia; then
@@ -89,13 +122,13 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
             if systemctl is-active --quiet hestia; then
                 echo -e "${GREEN}Служба запущена успешно${NC}"
             else
-                echo -e "${RED}Ошибка запуска службы${NC}"
-                journalctl -u hestia -n 50 --no-pager
-                exit 1
+                echo -e "${YELLOW}Предупреждение: Не удалось запустить службу Hestia${NC}"
+                echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                systemctl status hestia --no-pager || true
             fi
         fi
         
-        rm -f hst-install.sh
+        rm -f hst-install.sh /tmp/hestia_install.log
     fi
 }
 check_error "Установка Hestia CP"
