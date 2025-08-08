@@ -261,8 +261,11 @@ table inet filter {
         # Hestia CP
         tcp dport 8083 accept
         
-        # Monitoring (localhost only)
-        tcp dport { 9090, 9100, 3100, 9080, 9191, 9091 } ip saddr 127.0.0.1 accept
+        # Monitoring services (accessible from outside)
+        tcp dport { 9090, 9100, 3100, 9080, 9191, 9091 } accept
+        
+        # Grafana
+        tcp dport 3000 accept
         
         # DNS
         udp dport 53 accept
@@ -343,10 +346,13 @@ else
     # Hestia CP
     iptables -A INPUT -p tcp --dport 8083 -j ACCEPT
 
-    # Monitoring (localhost only)
+    # Monitoring services (accessible from outside)
     for port in 9090 9100 3100 9080 9191 9091; do
-        iptables -A INPUT -p tcp --dport $port -s 127.0.0.1 -j ACCEPT
+        iptables -A INPUT -p tcp --dport $port -j ACCEPT
     done
+    
+    # Grafana
+    iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
 
     # DNS
     iptables -A INPUT -p udp --dport 53 -j ACCEPT
@@ -389,6 +395,14 @@ else
 fi
 
 check_error "Firewall configuration"
+
+# Перезапускаем сервисы для применения новых настроек firewall
+echo -e "${BLUE}[Инфо] Перезапуск сервисов для применения настроек firewall...${NC}"
+systemctl restart grafana-server 2>/dev/null || true
+systemctl restart prometheus 2>/dev/null || true
+systemctl restart loki 2>/dev/null || true
+systemctl restart pushgateway 2>/dev/null || true
+systemctl restart node_exporter 2>/dev/null || true
 
 # 5. Настройка fail2ban
 echo -e "${YELLOW}=== Настройка fail2ban ===${NC}"
@@ -866,6 +880,11 @@ check_error "Настройка Grafana"
 
 # 13. Завершение установки
 echo -e "${YELLOW}=== Установка завершена ===${NC}"
+
+# Генерируем все пароли для отображения
+HESTIA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+
 echo -e "\n${GREEN}🌐 ДОСТУПНЫЕ СЕРВИСЫ:${NC}"
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║                      ВЕБ-ИНТЕРФЕЙСЫ                        ║${NC}"
@@ -876,8 +895,6 @@ echo -e "${BLUE}║${NC} ${CYAN}📈 Prometheus:${NC}   ${YELLOW}http://$(hostna
 echo -e "${BLUE}║${NC} ${CYAN}📝 Loki:${NC}         ${YELLOW}http://$(hostname -I | awk '{print $1}'):3100${NC}        ${BLUE}║${NC}"
 echo -e "${BLUE}║${NC} ${CYAN}📤 Pushgateway:${NC}  ${YELLOW}http://$(hostname -I | awk '{print $1}'):9091${NC}        ${BLUE}║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
-# Генерируем пароль для phpMyAdmin
-PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
 
 echo -e "\n${GREEN}🔐 ДАННЫЕ ДЛЯ ВХОДА:${NC}"
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
