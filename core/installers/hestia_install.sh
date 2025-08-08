@@ -109,8 +109,8 @@ execute_hestia_installation() {
     log_info "Начинаем установку HestiaCP..."
     log_info "Лог установки: $install_log"
     
-    # Создание команды установки
-    local install_cmd="bash /tmp/hst-install.sh --lang 'ru' --hostname '$HESTIA_HOSTNAME' --username '$HESTIA_USERNAME' --email '$install_email' --password '$HESTIA_PASSWORD' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --composer no --force"
+    # Создание команды установки (без composer, так как он не поддерживается в параметрах)
+    local install_cmd="bash /tmp/hst-install.sh --lang 'ru' --hostname '$HESTIA_HOSTNAME' --username '$HESTIA_USERNAME' --email '$install_email' --password '$HESTIA_PASSWORD' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force"
     
     log_info "Команда установки:"
     log_info "  $install_cmd"
@@ -198,6 +198,40 @@ stop_composer_processes() {
     else
         log_info "Процессы Composer не найдены"
     fi
+}
+
+# Функция для отключения Composer после установки
+disable_composer_installation() {
+    log_info "Отключение автоматической установки Composer..."
+    
+    # Отключение Composer в конфигурации HestiaCP
+    if [ -f "/usr/local/hestia/data/templates/web/nginx/php-fpm/php.ini" ]; then
+        log_info "Отключение Composer в PHP конфигурации..."
+        sed -i '/composer/d' /usr/local/hestia/data/templates/web/nginx/php-fpm/php.ini 2>/dev/null || true
+    fi
+    
+    # Отключение Composer в пользовательских настройках
+    if [ -d "/home/$HESTIA_USERNAME" ]; then
+        log_info "Отключение Composer для пользователя $HESTIA_USERNAME..."
+        
+        # Удаление Composer если он был установлен
+        if [ -f "/home/$HESTIA_USERNAME/.composer/composer.phar" ]; then
+            rm -f "/home/$HESTIA_USERNAME/.composer/composer.phar" 2>/dev/null || true
+        fi
+        
+        # Отключение Composer в .bashrc
+        if [ -f "/home/$HESTIA_USERNAME/.bashrc" ]; then
+            sed -i '/composer/d' "/home/$HESTIA_USERNAME/.bashrc" 2>/dev/null || true
+        fi
+    fi
+    
+    # Отключение Composer в системных настройках
+    if [ -f "/usr/local/hestia/bin/v-add-user-composer" ]; then
+        log_info "Переименование скрипта установки Composer..."
+        mv "/usr/local/hestia/bin/v-add-user-composer" "/usr/local/hestia/bin/v-add-user-composer.disabled" 2>/dev/null || true
+    fi
+    
+    log_ok "Composer отключен"
 }
 
 install_hestia() {
@@ -318,6 +352,9 @@ install_hestia() {
     if [ "$install_success" = true ]; then
         log_ok "✅ HestiaCP установлен успешно"
         echo "hestia_installed" > "$HESTIA_INSTALLED_FLAG"
+        
+        # Отключение Composer после установки
+        disable_composer_installation
         
         # Запуск службы HestiaCP
         log_info "Запуск службы HestiaCP..."
