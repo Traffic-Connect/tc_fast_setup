@@ -457,6 +457,32 @@ echo -e "${YELLOW}=== Установка Grafana ===${NC}"
     wget https://dl.grafana.com/oss/release/grafana_10.4.3_amd64.deb -O /tmp/grafana.deb
     dpkg -i /tmp/grafana.deb || apt-get install -fy
     rm -f /tmp/grafana.deb
+    
+    # Настраиваем Grafana для доступа извне
+    cat > /etc/grafana/grafana.ini <<EOF
+[server]
+http_addr = 0.0.0.0
+http_port = 3000
+protocol = http
+domain = localhost
+root_url = %(protocol)s://%(domain)s:%(http_port)s/
+serve_from_sub_path = false
+
+[security]
+admin_user = admin
+admin_password = admin
+allow_embedding = true
+
+[auth.anonymous]
+enabled = false
+
+[users]
+allow_sign_up = false
+allow_org_create = false
+auto_assign_org = true
+auto_assign_org_role = Viewer
+EOF
+    
     systemctl daemon-reload
     systemctl enable grafana-server
     systemctl start grafana-server
@@ -489,20 +515,20 @@ global:
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['0.0.0.0:9090']
   - job_name: 'node'
     static_configs:
-      - targets: ['localhost:9100']
+      - targets: ['0.0.0.0:9100']
   - job_name: 'loki'
     static_configs:
-      - targets: ['localhost:9080']
+      - targets: ['0.0.0.0:9080']
   - job_name: 'fail2ban'
     static_configs:
-      - targets: ['localhost:9191']
+      - targets: ['0.0.0.0:9191']
   - job_name: 'pushgateway'
     honor_labels: true
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: ['0.0.0.0:9091']
 EOF
 
     # Создаем файл с паролем для Prometheus
@@ -557,7 +583,7 @@ After=network.target
 [Service]
 User=node_exporter
 Group=node_exporter
-ExecStart=/usr/local/bin/node_exporter
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:9100
 
 [Install]
 WantedBy=multi-user.target
@@ -595,7 +621,7 @@ After=network.target
 User=pushgateway
 Group=pushgateway
 ExecStart=/usr/local/bin/pushgateway \\
-    --web.listen-address=:9091 \\
+    --web.listen-address=0.0.0.0:9091 \\
     --web.config.file=/etc/pushgateway/web.yml
 
 [Install]
@@ -647,7 +673,9 @@ auth:
 
 server:
   http_listen_port: 3100
+  http_listen_address: 0.0.0.0
   grpc_listen_port: 9096
+  grpc_listen_address: 0.0.0.0
 
 common:
   path_prefix: /var/lib/loki
@@ -715,6 +743,7 @@ EOF
     cat > /etc/promtail/promtail-config.yaml <<EOF
 server:
   http_listen_port: 9080
+  http_listen_address: 0.0.0.0
   grpc_listen_port: 0
 
 positions:
@@ -854,10 +883,7 @@ echo -e "Pushgateway: TrafficPushgateway / $PUSHGATEWAY_PASSWORD"
 echo -e "phpMyAdmin: TrafficPhpMyAdmin / $PHPMYADMIN_PASSWORD"
 echo -e "\n${GREEN}SSH доступ:${NC}"
 echo -e "SSH:        root / (ваш текущий пароль)"
-echo -e "\n${GREEN}Дополнительная информация:${NC}"
-echo -e "Hestia CP URL: https://$(hostname -f):8083"
-echo -e "Backup URL:    https://$(hostname -I | awk '{print $1}'):8083"
-echo -e "Email:         info@traffic.com"
+
 echo -e "\n${RED}ВАЖНО: Измените пароли после первого входа!${NC}"
 echo -e "${YELLOW}Рекомендуется:${NC}"
 echo -e "1. Сменить пароль администратора Hestia CP"
