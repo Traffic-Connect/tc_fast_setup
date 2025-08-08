@@ -65,7 +65,8 @@
 
 ### 1. Подготовка
 ```bash
-git clone https://github.com/Traffic-Connect/tc-fast-setup .
+git clone https://github.com/Traffic-Connect/tc_fast_setup.git
+cd tc_fast_setup
 chmod +x *.sh
 ```
 
