@@ -100,7 +100,7 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         
         echo -e "${BLUE}[Инфо] Запуск установки (это может занять несколько минут)...${NC}"
         # Запускаем установку и перехватываем ошибку если Hestia уже установлен
-        if bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRatoR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+        if bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --password 'AdMiNiStRaToR' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
             echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
         else
             # Проверяем, была ли ошибка из-за уже установленного Hestia
