@@ -121,7 +121,7 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
         
         # Запускаем установку с автоматическими ответами на вопросы
         echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
-        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficAdmin' --email 'info@traffic.com' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+        if yes | bash hst-install.sh --lang 'ru' --hostname 'HOSTNAME' --username 'TrafficAdmin' --email 'info@traffic.com' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
             # Проверяем успешность установки
             if grep -q "Hestia install detected" /tmp/hestia_install.log; then
                 echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
@@ -776,6 +776,22 @@ echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):9090"
 echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):3100"
 echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
 echo -e "\n${GREEN}Данные для входа:${NC}"
-echo -e "Hestia CP:  admin / (пароль из файла /usr/local/hestia/data/users/admin/password.conf)"
+echo -e "Hestia CP:  TrafficAdmin / AdMiNiStRaToR"
 echo -e "Grafana:    admin / admin"
-echo -e "\n${RED}ВАЖНО: \Cмените пароли${NC}"
+echo -e "phpMyAdmin:  TrafficAdmin / AdMiNiStRaToR"
+echo -e "\n${GREEN}SSH доступ:${NC}"
+echo -e "SSH:        root / (ваш текущий пароль)"
+echo -e "\n${GREEN}Дополнительная информация:${NC}"
+echo -e "Hestia CP URL: https://$(hostname -f):8083"
+echo -e "Backup URL:    https://$(hostname -I | awk '{print $1}'):8083"
+echo -e "Email:         info@traffic.com"
+echo -e "\n${RED}ВАЖНО: Измените пароли после первого входа!${NC}"
+echo -e "${YELLOW}Рекомендуется:${NC}"
+echo -e "1. Сменить пароль администратора Hestia CP"
+echo -e "2. Сменить пароль Grafana"
+echo -e "3. Настроить SSL сертификаты"
+echo -e "4. Настроить домены и почту"
+echo -e "\n${GREEN}Документация:${NC}"
+echo -e "Hestia CP: https://docs.hestiacp.com/"
+echo -e "Grafana:   https://grafana.com/docs/"
+echo -e "\n${BLUE}Установка завершена успешно! 🎉${NC}"
