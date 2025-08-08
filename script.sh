@@ -223,10 +223,17 @@ EOF
     echo -e "${BLUE}Adding Cloudflare rules...${NC}"
     CLOUDFLARE_IPS=$(curl -s --max-time 10 https://www.cloudflare.com/ips-v4 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$CLOUDFLARE_IPS" ]; then
+        # Создаем временный файл с правилами Cloudflare
+        CLOUDFLARE_RULES="/tmp/cloudflare_rules.nft"
+        echo "# Cloudflare IP addresses" > "$CLOUDFLARE_RULES"
         for ip in $CLOUDFLARE_IPS; do
-            nft add rule inet filter input tcp saddr $ip dport { 80, 443 } accept
+            echo "add rule inet filter input tcp saddr $ip dport { 80, 443 } accept" >> "$CLOUDFLARE_RULES"
         done
+        
+        # Применяем правила Cloudflare
+        nft -f "$CLOUDFLARE_RULES"
         echo -e "${GREEN}Added $(echo "$CLOUDFLARE_IPS" | wc -w) Cloudflare IP addresses${NC}"
+        rm -f "$CLOUDFLARE_RULES"
     else
         echo -e "${YELLOW}Failed to load Cloudflare IP addresses${NC}"
     fi
