@@ -1,10 +1,25 @@
 #!/bin/bash
 
+# Красивый заголовок скрипта
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - АВТОМАТИЧЕСКАЯ УСТАНОВКА${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
 # Проверка root
 if [ "$(id -u)" != "0" ]; then
-    echo "Этот скрипт должен быть запущен от имени root" 1>&2
+    echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
     exit 1
 fi
+
+# Отображение системной информации
+echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -12,20 +27,76 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
+
+# Дополнительные цвета для градиентов
+LIGHT_BLUE='\033[94m'
+LIGHT_GREEN='\033[92m'
+LIGHT_CYAN='\033[96m'
+LIGHT_PURPLE='\033[95m'
+LIGHT_RED='\033[91m'
+LIGHT_YELLOW='\033[93m'
+
+# Символы для оформления
+CHECK_MARK="✓"
+CROSS_MARK="✗"
+ARROW="→"
+STAR="★"
+DASH="─"
+EQUALS="═"
+CORNER_TL="╔"
+CORNER_TR="╗"
+CORNER_BL="╚"
+CORNER_BR="╝"
+LINE_V="║"
+LINE_H="═"
+LINE_T="╦"
+LINE_B="╩"
+LINE_L="╠"
+LINE_R="╣"
 
 # Функция проверки ошибок
 check_error() {
     if [ $? -ne 0 ]; then
-        echo -e "${RED}[ОШИБКА] $1${NC}"
+        echo -e "${RED}${CROSS_MARK} [ОШИБКА] $1${NC}"
         exit 1
     else
-        echo -e "${GREEN}[OK] $1${NC}"
+        echo -e "${GREEN}${CHECK_MARK} [OK] $1${NC}"
+    fi
+}
+
+# Функция для красивого заголовка
+print_header() {
+    local title="$1"
+    local width=60
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+    echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:padding} ${BOLD}${title}${NC} ${LINE_H:0:padding}${CORNER_TR}${NC}"
+}
+
+# Функция для прогресс-бара
+show_progress() {
+    local current=$1
+    local total=$2
+    local width=40
+    local percentage=$((current * 100 / total))
+    local filled=$((width * current / total))
+    local empty=$((width - filled))
+    
+    printf "\r${CYAN}[${NC}"
+    printf "%${filled}s" | tr ' ' '█'
+    printf "%${empty}s" | tr ' ' '░'
+    printf "${CYAN}] ${NC}${LIGHT_GREEN}%d%%${NC}" "$percentage"
+    
+    if [ "$current" -eq "$total" ]; then
+        echo
     fi
 }
 
 # 1. Очистка системы
-echo -e "${YELLOW}=== Очистка системы ===${NC}"
+print_header "🧹 ОЧИСТКА СИСТЕМЫ"
 {
     systemctl stop grafana-server 2>/dev/null || true
     apt purge -y grafana* 2>/dev/null || true
@@ -35,19 +106,32 @@ echo -e "${YELLOW}=== Очистка системы ===${NC}"
 } > /dev/null 2>&1
 
 # Установка временной зоны
-timedatectl set-timezone Europe/Moscow
+timedatectl set-timezone Europe/Minsk
 
 # 2. Обновление системы и установка базовых пакетов
-echo -e "${YELLOW}=== Установка базовых пакетов ===${NC}"
-apt update && apt upgrade -y
+print_header "📦 УСТАНОВКА БАЗОВЫХ ПАКЕТОВ"
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление списка пакетов..."
+apt update > /dev/null 2>&1
+show_progress 1 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление системы..."
+apt upgrade -y > /dev/null 2>&1
+show_progress 2 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов..."
 apt install -y fail2ban iptables-persistent netfilter-persistent nftables curl wget \
                software-properties-common apt-transport-https python3 \
                python3-pip python3-venv git gnupg2 ca-certificates \
-               adduser libfontconfig1 unzip htop ncdu
+               adduser libfontconfig1 unzip htop ncdu > /dev/null 2>&1
+show_progress 3 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение установки..."
+show_progress 4 4
 check_error "Установка базовых пакетов"
 
 # 3. Установка Hestia CP
-echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
+print_header "🌐 УСТАНОВКА HESTIA CP"
 {
     # Расширенная проверка наличия Hestia CP
     HESTIA_INSTALLED=false
@@ -217,7 +301,7 @@ echo -e "${YELLOW}=== Установка Hestia CP ===${NC}"
 check_error "Установка Hestia CP"
 
 # 4. Firewall configuration (improved version)
-echo -e "${YELLOW}=== Firewall configuration ===${NC}"
+print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 
 # Check nftables availability, otherwise use iptables
 if command -v nft >/dev/null 2>&1; then
@@ -405,7 +489,7 @@ systemctl restart pushgateway 2>/dev/null || true
 systemctl restart node_exporter 2>/dev/null || true
 
 # 5. Настройка fail2ban
-echo -e "${YELLOW}=== Настройка fail2ban ===${NC}"
+print_header "🛡️ НАСТРОЙКА FAIL2BAN"
 cat > /etc/fail2ban/jail.local <<EOL
 [DEFAULT]
 ignoreip = 127.0.0.1/8
@@ -467,7 +551,7 @@ systemctl enable --now fail2ban
 check_error "Настройка fail2ban"
 
 # 6. Установка Grafana
-echo -e "${YELLOW}=== Установка Grafana ===${NC}"
+print_header "📊 УСТАНОВКА GRAFANA"
 {
     wget https://dl.grafana.com/oss/release/grafana_10.4.3_amd64.deb -O /tmp/grafana.deb
     dpkg -i /tmp/grafana.deb || apt-get install -fy
@@ -505,7 +589,7 @@ EOF
 check_error "Установка Grafana"
 
 # 7. Установка Prometheus
-echo -e "${YELLOW}=== Установка Prometheus ===${NC}"
+print_header "📈 УСТАНОВКА PROMETHEUS"
 {
     useradd --no-create-home --shell /bin/false prometheus 2>/dev/null || true
     mkdir -p /etc/prometheus /var/lib/prometheus
@@ -582,7 +666,7 @@ EOF
 check_error "Установка Prometheus"
 
 # 8. Установка Node Exporter
-echo -e "${YELLOW}=== Установка Node Exporter ===${NC}"
+print_header "🖥️ УСТАНОВКА NODE EXPORTER"
 {
     wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
     tar xvf /tmp/node_exporter.tar.gz -C /tmp/
@@ -611,7 +695,7 @@ EOF
 check_error "Установка Node Exporter"
 
 # 9. Установка Pushgateway
-echo -e "${YELLOW}=== Установка Pushgateway ===${NC}"
+print_header "📤 УСТАНОВКА PUSHGATEWAY"
 {
     wget https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
     tar xvf /tmp/pushgateway.tar.gz -C /tmp/
@@ -650,7 +734,7 @@ EOF
 check_error "Установка Pushgateway"
 
 # 10. Установка Loki и Promtail
-echo -e "${YELLOW}=== Установка Loki и Promtail ===${NC}"
+print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
 {
     LOKI_VERSION="2.9.1"
     
@@ -798,7 +882,7 @@ EOF
 check_error "Установка Loki и Promtail"
 
 # 11. Настройка экспортера для fail2ban
-echo -e "${YELLOW}=== Настройка мониторинга fail2ban ===${NC}"
+print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
 {
     apt-get install -y python3-prometheus-client
     cat <<'EOF' | tee /usr/local/bin/fail2ban_exporter.py
@@ -847,7 +931,7 @@ EOF
 check_error "Настройка мониторинга fail2ban"
 
 # 12. Настройка Grafana
-echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
+print_header "⚙️ НАСТРОЙКА GRAFANA"
 {
     while ! systemctl is-active --quiet grafana-server; do
         sleep 1
@@ -879,44 +963,53 @@ echo -e "${YELLOW}=== Настройка Grafana ===${NC}"
 check_error "Настройка Grafana"
 
 # 13. Завершение установки
-echo -e "${YELLOW}=== Установка завершена ===${NC}"
+print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения
 HESTIA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
 PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
 
-echo -e "\n${GREEN}🌐 ДОСТУПНЫЕ СЕРВИСЫ:${NC}"
-echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                      ВЕБ-ИНТЕРФЕЙСЫ                        ║${NC}"
-echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}🌐 Hestia CP:${NC}    ${YELLOW}http://$(hostname -I | awk '{print $1}'):8083${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📊 Grafana:${NC}      ${YELLOW}http://$(hostname -I | awk '{print $1}'):3000${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📈 Prometheus:${NC}   ${YELLOW}http://$(hostname -I | awk '{print $1}'):9090${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📝 Loki:${NC}         ${YELLOW}http://$(hostname -I | awk '{print $1}'):3100${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📤 Pushgateway:${NC}  ${YELLOW}http://$(hostname -I | awk '{print $1}'):9091${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
+# Получаем IP адрес сервера
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo -e "\n${GREEN}🔐 ДАННЫЕ ДЛЯ ВХОДА:${NC}"
-echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                    УЧЕТНЫЕ ДАННЫЕ                           ║${NC}"
-echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}🌐 Hestia CP:${NC}     ${YELLOW}TrafficHestia${NC}     ${GREEN}/${NC} ${RED}$HESTIA_PASSWORD${NC}     ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📊 Grafana:${NC}       ${YELLOW}TrafficGrafana${NC}     ${GREEN}/${NC} ${RED}$GRAFANA_PASSWORD${NC}     ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📈 Prometheus:${NC}    ${YELLOW}TrafficPrometheus${NC}  ${GREEN}/${NC} ${RED}$PROMETHEUS_PASSWORD${NC}  ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📝 Loki:${NC}          ${YELLOW}TrafficLoki${NC}        ${GREEN}/${NC} ${RED}$LOKI_PASSWORD${NC}        ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}📤 Pushgateway:${NC}   ${YELLOW}TrafficPushgateway${NC} ${GREEN}/${NC} ${RED}$PUSHGATEWAY_PASSWORD${NC} ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${YELLOW}TrafficPhpMyAdmin${NC}  ${GREEN}/${NC} ${RED}$PHPMYADMIN_PASSWORD${NC}  ${BLUE}║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
-echo -e "\n${GREEN}SSH доступ:${NC}"
-echo -e "SSH:        root / (ваш текущий пароль)"
+echo -e "\n${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУПНЫЕ СЕРВИСЫ${NC} ${LIGHT_BLUE}${STAR}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙСЫ${NC}${LIGHT_BLUE}${LINE_V:0:42}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}    ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}      ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}   ${LIGHT_YELLOW}http://${SERVER_IP}:9090${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}         ${LIGHT_YELLOW}http://${SERVER_IP}:3100${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}  ${LIGHT_YELLOW}http://${SERVER_IP}:9091${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
-echo -e "\n${RED}ВАЖНО: Измените пароли после первого входа!${NC}"
-echo -e "${YELLOW}Рекомендуется:${NC}"
-echo -e "1. Сменить пароль администратора Hestia CP"
-echo -e "2. Сменить пароль Grafana"
-echo -e "3. Настроить SSL сертификаты"
-echo -e "4. Настроить домены и почту"
-echo -e "\n${GREEN}Документация:${NC}"
-echo -e "Hestia CP: https://docs.hestiacp.com/"
-echo -e "Grafana:   https://grafana.com/docs/"
-echo -e "\n${BLUE}Установка завершена успешно! 🎉${NC}"
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДАННЫЕ ДЛЯ ВХОДА${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ ДАННЫЕ${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}     ${LIGHT_YELLOW}TrafficHestia${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$HESTIA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}       ${LIGHT_YELLOW}TrafficGrafana${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$GRAFANA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}TrafficPrometheus${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PROMETHEUS_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}TrafficLoki${NC}        ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$LOKI_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}   ${LIGHT_YELLOW}TrafficPushgateway${NC} ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PUSHGATEWAY_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${LIGHT_YELLOW}TrafficPhpMyAdmin${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PHPMYADMIN_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🎉 УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО! 🎉${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+# Дополнительная информация
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ПОЛЕЗНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Grafana:${NC}    ${LIGHT_YELLOW}/var/log/grafana/grafana.log${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Prometheus:${NC}  ${LIGHT_YELLOW}/var/log/prometheus/${NC}${LIGHT_PURPLE}${LINE_V:0:12}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Loki:${NC}        ${LIGHT_YELLOW}/var/log/loki/${NC}${LIGHT_PURPLE}${LINE_V:0:18}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Promtail:${NC}   ${LIGHT_YELLOW}/var/log/promtail/${NC}${LIGHT_PURPLE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Fail2ban:${NC}   ${LIGHT_YELLOW}/var/log/fail2ban.log${NC}${LIGHT_PURPLE}${LINE_V:0:10}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Все сервисы установлены и настроены!${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Рекомендуется перезагрузить сервер после установки"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Для мониторинга используйте Grafana: ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Для управления сервером используйте Hestia CP: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"
