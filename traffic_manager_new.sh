@@ -398,11 +398,41 @@ main_installation() {
         # Продолжение установки после перезагрузки
         log_step "ПРОДОЛЖЕНИЕ УСТАНОВКИ ПОСЛЕ ПЕРЕЗАГРУЗКИ"
         
-        # Проверка, установлен ли HestiaCP
-        if [ ! -f "$HESTIA_INSTALLED_FLAG" ] && [ ! -f "/usr/local/admin/bin/admin" ]; then
-            log_err "HestiaCP не установлен. Сначала выполните установку HestiaCP"
+        # Улучшенная проверка установки HestiaCP после перезагрузки
+        log_info "Проверка установки HestiaCP после перезагрузки..."
+        
+        local hestia_ready=false
+        
+        # Проверка основных компонентов
+        if [ -f "/usr/local/admin/bin/admin" ]; then
+            log_info "✅ Основной бинарный файл HestiaCP найден"
+            hestia_ready=true
+        fi
+        
+        if [ -d "/usr/local/hestia" ]; then
+            log_info "✅ Директория конфигурации HestiaCP найдена"
+            hestia_ready=true
+        fi
+        
+        # Проверка службы
+        if is_service_active "admin"; then
+            log_info "✅ Служба HestiaCP работает"
+            hestia_ready=true
+        fi
+        
+        # Проверка веб-интерфейса
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 | grep -q "200\|302"; then
+            log_info "✅ Веб-интерфейс HestiaCP доступен"
+            hestia_ready=true
+        fi
+        
+        if [ "$hestia_ready" = false ]; then
+            log_err "❌ HestiaCP не готов к работе после перезагрузки"
+            log_info "Попробуйте запустить: bash traffic_manager_new.sh --install-hestia"
             exit 1
         fi
+        
+        log_ok "✅ HestiaCP готов к работе, продолжаем установку"
         
         # Продолжение с этапа безопасности
         import_module "security_install"
@@ -430,12 +460,41 @@ main_installation() {
         import_module "hestia_install"
         install_hestia
         
-        # Проверка успешности установки HestiaCP
-        if [ ! -f "$HESTIA_INSTALLED_FLAG" ] && [ ! -f "/usr/local/admin/bin/admin" ]; then
-            log_err "❌ Критическая ошибка: HestiaCP не установлен"
+        # Улучшенная проверка успешности установки HestiaCP
+        log_info "Проверка успешности установки HestiaCP..."
+        
+        local hestia_success=false
+        
+        # Проверка основных компонентов
+        if [ -f "/usr/local/admin/bin/admin" ]; then
+            log_info "✅ Основной бинарный файл HestiaCP найден"
+            hestia_success=true
+        fi
+        
+        if [ -d "/usr/local/hestia" ]; then
+            log_info "✅ Директория конфигурации HestiaCP найдена"
+            hestia_success=true
+        fi
+        
+        # Проверка службы
+        if is_service_active "admin"; then
+            log_info "✅ Служба HestiaCP работает"
+            hestia_success=true
+        fi
+        
+        # Проверка веб-интерфейса
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 | grep -q "200\|302"; then
+            log_info "✅ Веб-интерфейс HestiaCP доступен"
+            hestia_success=true
+        fi
+        
+        if [ "$hestia_success" = false ]; then
+            log_err "❌ Критическая ошибка: HestiaCP не установлен корректно"
             log_err "Установка прервана. HestiaCP должен быть установлен в первую очередь."
             exit 1
         fi
+        
+        log_ok "✅ HestiaCP установлен успешно"
         
         # Проверка, требуется ли перезагрузка
         if [ -f "$REBOOT_REQUIRED_FLAG" ]; then
