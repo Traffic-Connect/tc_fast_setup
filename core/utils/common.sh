@@ -7,12 +7,12 @@
 if [ -z "$PROJECT_ROOT" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-    source "$PROJECT_ROOT/core/configs/configuration.sh"
+    source "$PROJECT_ROOT/core/configs/main.conf"
 fi
 
 # Загрузка пользовательской конфигурации если существует
-if [ -f "$PROJECT_ROOT/web/configs/config.local.sh" ]; then
-    source "$PROJECT_ROOT/web/configs/config.local.sh"
+if [ -f "$PROJECT_ROOT/config/config.local.sh" ]; then
+    source "$PROJECT_ROOT/config/config.local.sh"
 fi
 
 # Глобальные переменные для отслеживания
@@ -688,3 +688,65 @@ safe_rm() {
 
 # show_access_credentials() - функция перенесена в traffic_manager_new.sh
 # Используйте source "$PROJECT_ROOT/traffic_manager_new.sh" для доступа к функции
+
+# ============================================================================
+# ГЕНЕРАЦИЯ БЕЗОПАСНЫХ ПАРОЛЕЙ
+# ============================================================================
+
+generate_secure_passwords() {
+    set_logger_module "password_generator"
+    log_info "Генерация безопасных паролей для всех сервисов..."
+    
+    # Генерация пароля для HestiaCP
+    if [ -z "$HESTIA_PASSWORD" ]; then
+        HESTIA_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для HestiaCP"
+    fi
+    
+    # Генерация пароля для Grafana
+    if [ -z "$GRAFANA_ADMIN_PASSWORD" ]; then
+        GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Grafana"
+    fi
+    
+    # Генерация пароля для Prometheus
+    if [ -z "$PROMETHEUS_PASSWORD" ]; then
+        PROMETHEUS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Prometheus"
+    fi
+    
+    # Генерация пароля для Loki
+    if [ -z "$LOKI_PASSWORD" ]; then
+        LOKI_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Loki"
+    fi
+    
+    # Генерация пароля для Node Exporter
+    if [ -z "$NODE_EXPORTER_PASSWORD" ]; then
+        NODE_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Node Exporter"
+    fi
+    
+    # Генерация пароля для Pushgateway
+    if [ -z "$PUSHGATEWAY_PASSWORD" ]; then
+        PUSHGATEWAY_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Pushgateway"
+    fi
+    
+    # Генерация пароля для Fail2ban Exporter
+    if [ -z "$FAIL2BAN_EXPORTER_PASSWORD" ]; then
+        FAIL2BAN_EXPORTER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        log_debug "Сгенерирован пароль для Fail2ban Exporter"
+    fi
+    
+    # Экспорт переменных для использования в других модулях
+    export HESTIA_PASSWORD
+    export GRAFANA_ADMIN_PASSWORD
+    export PROMETHEUS_PASSWORD
+    export LOKI_PASSWORD
+    export NODE_EXPORTER_PASSWORD
+    export PUSHGATEWAY_PASSWORD
+    export FAIL2BAN_EXPORTER_PASSWORD
+    
+    log_ok "Все пароли сгенерированы успешно"
+}

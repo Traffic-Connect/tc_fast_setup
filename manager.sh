@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # Загрузка конфигурации и библиотек
-source "$PROJECT_ROOT/core/configs/configuration.sh"
+source "$PROJECT_ROOT/core/configs/main.conf"
 source "$PROJECT_ROOT/core/utils/common.sh"
 source "$PROJECT_ROOT/core/utils/logger.sh"
 

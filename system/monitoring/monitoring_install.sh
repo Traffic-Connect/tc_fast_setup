@@ -7,7 +7,7 @@
 # Загрузка зависимостей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-source "$PROJECT_ROOT/core/configs/configuration.sh"
+source "$PROJECT_ROOT/core/configs/main.conf"
 source "$PROJECT_ROOT/core/utils/common.sh"
 
 # Экспорт переменных паролей для использования в скрипте

@@ -10,6 +10,19 @@ if [ -z "$PROJECT_ROOT" ]; then
     source "$PROJECT_ROOT/core/configs/main.conf"
 fi
 
+# Проверка и инициализация критических переменных
+if [ -z "$LOG_DIR" ]; then
+    LOG_DIR="/var/log/traffic_connect"
+fi
+
+if [ -z "$TEMP_DIR" ]; then
+    TEMP_DIR="/tmp/traffic_connect"
+fi
+
+if [ -z "$CURRENT_LOG_LEVEL" ]; then
+    CURRENT_LOG_LEVEL=${LOG_LEVEL_INFO:-1}
+fi
+
 # ============================================================================
 # ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ЛОГИРОВАНИЯ
 # ============================================================================

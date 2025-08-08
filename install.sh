@@ -5,7 +5,7 @@
 
 # Определение путей
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$SCRIPT_DIR"
 
 # Загрузка конфигурации
 source "$PROJECT_ROOT/core/configs/main.conf"
@@ -48,35 +48,35 @@ import_module() {
             module_path="$PROJECT_ROOT/modules/core/logging.sh"
             ;;
         "password_gen")
-            module_path="$PROJECT_ROOT/modules/core/password_gen.sh"
+            module_path="$PROJECT_ROOT/core/utils/common.sh"
             ;;
         "utils")
-            module_path="$PROJECT_ROOT/modules/core/utils.sh"
+            module_path="$PROJECT_ROOT/core/utils/common.sh"
             ;;
         
         # Установщики
         "hestia_install")
-            module_path="$PROJECT_ROOT/modules/installers/hestia_install.sh"
+            module_path="$PROJECT_ROOT/core/installers/hestia_install.sh"
             ;;
         "security_install")
-            module_path="$PROJECT_ROOT/modules/installers/security_install.sh"
+            module_path="$PROJECT_ROOT/system/security/security_install.sh"
             ;;
         "monitoring_install")
-            module_path="$PROJECT_ROOT/modules/installers/monitoring_install.sh"
+            module_path="$PROJECT_ROOT/system/monitoring/monitoring_install.sh"
             ;;
         "templates_install")
-            module_path="$PROJECT_ROOT/modules/installers/templates_install.sh"
+            module_path="$PROJECT_ROOT/web/templates/templates_install.sh"
             ;;
         
         # Менеджеры
         "service_manager")
-            module_path="$PROJECT_ROOT/modules/managers/service_manager.sh"
+            module_path="$PROJECT_ROOT/core/managers/service_manager.sh"
             ;;
         "config_manager")
-            module_path="$PROJECT_ROOT/modules/managers/config_manager.sh"
+            module_path="$PROJECT_ROOT/core/managers/config_manager.sh"
             ;;
         "log_manager")
-            module_path="$PROJECT_ROOT/modules/managers/log_manager.sh"
+            module_path="$PROJECT_ROOT/core/utils/logger.sh"
             ;;
         
         # Системные модули
@@ -84,18 +84,18 @@ import_module() {
             module_path="$PROJECT_ROOT/system/security/security_policy.sh"
             ;;
         "monitoring_policy")
-            module_path="$PROJECT_ROOT/system/monitoring/monitoring_policy.sh"
+            module_path="$PROJECT_ROOT/system/monitoring/monitoring_install.sh"
             ;;
         
         # Инструменты
         "diagnostics")
-            module_path="$PROJECT_ROOT/modules/tools/diagnostics.sh"
+            module_path="$PROJECT_ROOT/modules/tools/check_hestia.sh"
             ;;
         "maintenance")
-            module_path="$PROJECT_ROOT/modules/tools/maintenance.sh"
+            module_path="$PROJECT_ROOT/core/utils/system.sh"
             ;;
         "cleanup")
-            module_path="$PROJECT_ROOT/modules/tools/cleanup.sh"
+            module_path="$PROJECT_ROOT/core/utils/system.sh"
             ;;
         
         *)
