@@ -539,6 +539,7 @@ main_installation() {
             fi
             
             log_ok "✅ HestiaCP установлен успешно"
+        fi
         
         # Проверка, требуется ли перезагрузка
         if [ -f "$REBOOT_REQUIRED_FLAG" ]; then
