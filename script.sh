@@ -277,17 +277,14 @@ EOF
     echo -e "${BLUE}Adding Cloudflare rules...${NC}"
     CLOUDFLARE_IPS=$(curl -s --max-time 10 https://www.cloudflare.com/ips-v4 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$CLOUDFLARE_IPS" ]; then
-        # Создаем временный файл с правилами Cloudflare
-        CLOUDFLARE_RULES="/tmp/cloudflare_rules.nft"
-        echo "# Cloudflare IP addresses" > "$CLOUDFLARE_RULES"
+        # Добавляем правила Cloudflare через команды nft
+        CLOUDFLARE_COUNT=0
         for ip in $CLOUDFLARE_IPS; do
-            echo "add rule inet filter input tcp saddr $ip dport { 80, 443 } accept" >> "$CLOUDFLARE_RULES"
+            if nft add rule inet filter input tcp saddr "$ip" dport { 80, 443 } accept 2>/dev/null; then
+                CLOUDFLARE_COUNT=$((CLOUDFLARE_COUNT + 1))
+            fi
         done
-        
-        # Применяем правила Cloudflare
-        nft -f "$CLOUDFLARE_RULES"
-        echo -e "${GREEN}Added $(echo "$CLOUDFLARE_IPS" | wc -w) Cloudflare IP addresses${NC}"
-        rm -f "$CLOUDFLARE_RULES"
+        echo -e "${GREEN}Added $CLOUDFLARE_COUNT Cloudflare IP addresses${NC}"
     else
         echo -e "${YELLOW}Failed to load Cloudflare IP addresses${NC}"
     fi
