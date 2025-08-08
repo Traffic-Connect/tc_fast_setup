@@ -11,6 +11,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Функция проверки ошибок
@@ -865,22 +866,30 @@ check_error "Настройка Grafana"
 
 # 13. Завершение установки
 echo -e "${YELLOW}=== Установка завершена ===${NC}"
-echo -e "${GREEN}Доступные сервисы:${NC}"
-echo -e "Hestia CP:    http://$(hostname -I | awk '{print $1}'):8083"
-echo -e "Grafana:      http://$(hostname -I | awk '{print $1}'):3000"
-echo -e "Prometheus:   http://$(hostname -I | awk '{print $1}'):9090"
-echo -e "Loki:         http://$(hostname -I | awk '{print $1}'):3100"
-echo -e "Pushgateway:  http://$(hostname -I | awk '{print $1}'):9091"
-echo -e "\n${GREEN}Данные для входа:${NC}"
+echo -e "\n${GREEN}🌐 ДОСТУПНЫЕ СЕРВИСЫ:${NC}"
+echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║                      ВЕБ-ИНТЕРФЕЙСЫ                        ║${NC}"
+echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}🌐 Hestia CP:${NC}    ${YELLOW}http://$(hostname -I | awk '{print $1}'):8083${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📊 Grafana:${NC}      ${YELLOW}http://$(hostname -I | awk '{print $1}'):3000${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📈 Prometheus:${NC}   ${YELLOW}http://$(hostname -I | awk '{print $1}'):9090${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📝 Loki:${NC}         ${YELLOW}http://$(hostname -I | awk '{print $1}'):3100${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📤 Pushgateway:${NC}  ${YELLOW}http://$(hostname -I | awk '{print $1}'):9091${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
 # Генерируем пароль для phpMyAdmin
 PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
 
-echo -e "Hestia CP:  TrafficHestia / $HESTIA_PASSWORD"
-echo -e "Grafana:    TrafficGrafana / $GRAFANA_PASSWORD"
-echo -e "Prometheus: TrafficPrometheus / $PROMETHEUS_PASSWORD"
-echo -e "Loki:       TrafficLoki / $LOKI_PASSWORD"
-echo -e "Pushgateway: TrafficPushgateway / $PUSHGATEWAY_PASSWORD"
-echo -e "phpMyAdmin: TrafficPhpMyAdmin / $PHPMYADMIN_PASSWORD"
+echo -e "\n${GREEN}🔐 ДАННЫЕ ДЛЯ ВХОДА:${NC}"
+echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║                    УЧЕТНЫЕ ДАННЫЕ                           ║${NC}"
+echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}🌐 Hestia CP:${NC}     ${YELLOW}TrafficHestia${NC}     ${GREEN}/${NC} ${RED}$HESTIA_PASSWORD${NC}     ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📊 Grafana:${NC}       ${YELLOW}TrafficGrafana${NC}     ${GREEN}/${NC} ${RED}$GRAFANA_PASSWORD${NC}     ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📈 Prometheus:${NC}    ${YELLOW}TrafficPrometheus${NC}  ${GREEN}/${NC} ${RED}$PROMETHEUS_PASSWORD${NC}  ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📝 Loki:${NC}          ${YELLOW}TrafficLoki${NC}        ${GREEN}/${NC} ${RED}$LOKI_PASSWORD${NC}        ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}📤 Pushgateway:${NC}   ${YELLOW}TrafficPushgateway${NC} ${GREEN}/${NC} ${RED}$PUSHGATEWAY_PASSWORD${NC} ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${YELLOW}TrafficPhpMyAdmin${NC}  ${GREEN}/${NC} ${RED}$PHPMYADMIN_PASSWORD${NC}  ${BLUE}║${NC}"
+echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo -e "\n${GREEN}SSH доступ:${NC}"
 echo -e "SSH:        root / (ваш текущий пароль)"
 
