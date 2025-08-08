@@ -43,20 +43,20 @@ LIGHT_YELLOW='\033[93m'
 # Символы для оформления
 CHECK_MARK="✓"
 CROSS_MARK="✗"
-ARROW="→"
-STAR="★"
-DASH="─"
-EQUALS="═"
-CORNER_TL="╔"
-CORNER_TR="╗"
-CORNER_BL="╚"
-CORNER_BR="╝"
-LINE_V="║"
-LINE_H="═"
-LINE_T="╦"
-LINE_B="╩"
-LINE_L="╠"
-LINE_R="╣"
+ARROW="->"
+STAR="*"
+DASH="-"
+EQUALS="="
+CORNER_TL="+"
+CORNER_TR="+"
+CORNER_BL="+"
+CORNER_BR="+"
+LINE_V="|"
+LINE_H="="
+LINE_T="+"
+LINE_B="+"
+LINE_L="+"
+LINE_R="+"
 
 # Функция проверки ошибок
 check_error() {
@@ -86,8 +86,8 @@ show_progress() {
     local empty=$((width - filled))
     
     printf "\r${CYAN}[${NC}"
-    printf "%${filled}s" | tr ' ' '█'
-    printf "%${empty}s" | tr ' ' '░'
+    printf "%${filled}s" | tr ' ' '#'
+    printf "%${empty}s" | tr ' ' '-'
     printf "${CYAN}] ${NC}${LIGHT_GREEN}%d%%${NC}" "$percentage"
     
     if [ "$current" -eq "$total" ]; then
