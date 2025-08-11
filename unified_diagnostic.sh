@@ -245,6 +245,75 @@ setup_php() {
     fi
 }
 
+# Функция исправления проблем с Composer
+fix_composer() {
+    echo -e "\n${CYAN}📦 ИСПРАВЛЕНИЕ COMPOSER${NC}"
+    echo "----------------------------------------"
+    
+    # Проверяем, установлен ли уже Composer
+    if command -v composer >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Composer уже установлен${NC}"
+        composer --version | head -1
+        return 0
+    fi
+    
+    # Проверяем PHP
+    if ! command -v php >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️ PHP не установлен. Устанавливаем...${NC}"
+        
+        # Останавливаем зависшие процессы APT
+        pkill -f apt 2>/dev/null || true
+        pkill -f dpkg 2>/dev/null || true
+        sleep 3
+        
+        # Очищаем блокировки
+        rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
+        rm -f /var/lib/dpkg/lock 2>/dev/null || true
+        rm -f /var/cache/apt/archives/lock 2>/dev/null || true
+        rm -f /var/lib/apt/lists/lock 2>/dev/null || true
+        
+        # Восстанавливаем пакеты
+        dpkg --configure -a 2>/dev/null || true
+        
+        # Устанавливаем PHP
+        export DEBIAN_FRONTEND=noninteractive
+        apt update 2>/dev/null || true
+        apt install -y php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm 2>/dev/null || true
+    fi
+    
+    # Устанавливаем Composer с таймаутом
+    echo -e "${BLUE}Установка Composer...${NC}"
+    if timeout 300 bash -c '
+        curl -sS --connect-timeout 30 --max-time 300 https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    '; then
+        echo -e "${GREEN}✅ Composer установлен успешно${NC}"
+    else
+        echo -e "${YELLOW}⚠️ Первый метод не сработал. Попытка 2...${NC}"
+        
+        # Альтернативный метод
+        if timeout 300 bash -c '
+            wget --timeout=30 --tries=3 -O composer-setup.php https://getcomposer.org/installer
+            php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+            rm composer-setup.php
+        '; then
+            echo -e "${GREEN}✅ Composer установлен успешно${NC}"
+        else
+            echo -e "${RED}❌ Не удалось установить Composer${NC}"
+            return 1
+        fi
+    fi
+    
+    # Проверяем установку
+    if command -v composer >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Composer готов к работе${NC}"
+        composer --version | head -1
+        return 0
+    else
+        echo -e "${RED}❌ Composer не найден после установки${NC}"
+        return 1
+    fi
+}
+
 # Функция запуска сервисов
 start_services() {
     echo -e "\n${CYAN}🚀 ЗАПУСК СЕРВИСОВ${NC}"
@@ -408,6 +477,23 @@ main() {
             final_cleanup
             check_readiness
             ;;
+        "composer")
+            # Исправление проблем с Composer
+            echo -e "${YELLOW}⚠️ Исправление проблем с Composer${NC}"
+            echo ""
+            read -p "Продолжить? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "Отменено пользователем"
+                exit 1
+            fi
+            
+            kill_hanging_processes
+            clean_locks
+            restore_packages
+            fix_composer
+            check_readiness
+            ;;
         *)
             echo -e "${YELLOW}Универсальный диагностический скрипт${NC}"
             echo ""
@@ -420,6 +506,7 @@ main() {
             echo "  quick     - Быстрое исправление"
             echo "  full      - Полное исправление"
             echo "  finish    - Завершение установки (99% -> 100%)"
+            echo "  composer  - Исправление проблем с Composer"
             echo ""
             echo "Примеры:"
             echo "  $0 diagnose"
@@ -427,6 +514,7 @@ main() {
             echo "  $0 quick"
             echo "  $0 full"
             echo "  $0 finish"
+            echo "  $0 composer"
             echo ""
             echo -e "${CYAN}Рекомендуется начать с: ${YELLOW}$0 diagnose${NC}"
             exit 1
