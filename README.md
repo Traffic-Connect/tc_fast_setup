@@ -1,11 +1,11 @@
 # 🚀 TC Fast Setup - Быстрая установка системы мониторинга
 
-Автоматический скрипт для установки полноценной системы мониторинга на Ubuntu VPS с Hestia CP, Grafana, Prometheus, Loki и другими компонентами.
+Автоматический скрипт для установки полноценной системы мониторинга на Ubuntu VPS с Grafana, Prometheus, Loki и другими компонентами.
 
 ## 📋 Что устанавливается
 
 ### 🌐 Веб-интерфейсы
-- **Hestia CP** - панель управления сервером (порт 8083)
+
 - **Grafana** - дашборды мониторинга (порт 3000)
 - **Prometheus** - сбор метрик (порт 9090)
 - **Loki** - агрегация логов (порт 3100)
@@ -110,7 +110,7 @@ chmod +x fix_auth.sh
 
 | Сервис | URL | Логин | Пароль |
 |--------|-----|-------|--------|
-| Hestia CP | https://IP:8083 | admin | ваш пароль |
+
 | Grafana | http://IP:3000 | TrafficGrafana | JRPhqZbDgAZAoFPh |
 | Prometheus | http://IP:9090 | TrafficPrometheus | EL8YcD649BB80rZM |
 | Loki | http://IP:3100 | TrafficLoki | 6wnakjz8nvEV1YAf |

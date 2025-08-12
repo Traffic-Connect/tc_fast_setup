@@ -273,25 +273,7 @@ EOF
     echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Создана заглушка Composer"
 }
 
-# Функция безопасной установки Hestia CP
-safe_install_hestia() {
-    echo "=== ОТЛАДКА: Функция safe_install_hestia() ==="
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Проверка и установка Hestia CP..."
-    
-    # Проверяем, не установлен ли уже Hestia CP
-    if [ -f "/usr/local/hestia/bin/v-list" ] || [ -f "/usr/local/hestia/bin/v-add-user" ] || [ -d "/usr/local/hestia" ]; then
-        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP уже установлен"
-        return 0
-    fi
-    
-    echo -e "${LIGHT_YELLOW}⚠️ Пропускаем установку Hestia CP для ускорения процесса${NC}"
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Hestia CP можно установить позже вручную:"
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh"
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} bash hst-install.sh --lang 'ru' --hostname \$(hostname) --username 'admin' --email 'admin@example.com' --password 'password' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force"
-    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP пропущен (установите вручную)"
-    
-    return 0
-}
+
 
 # Функция проверки ошибок
 check_error() {
@@ -380,10 +362,7 @@ echo -e "${LIGHT_CYAN}${ARROW}${NC} Создаем заглушку Composer..."
 create_composer_stub
 echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer заглушка создана (можно установить позже вручную)"
 
-# 4. Установка Hestia CP
-print_header "🌐 УСТАНОВКА HESTIA CP"
-
-check_error "Установка Hestia CP"
+# 4. Firewall configuration (improved version)
 
 # 5. Firewall configuration (improved version)
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
@@ -414,7 +393,7 @@ table inet filter {
         type filter hook input priority 0; policy drop;
         iif lo accept
         ct state established,related accept
-        tcp dport { 22, 80, 443, 8083, 3000, 9090, 9100, 3100, 9080, 9191, 9091 } accept
+        tcp dport { 22, 80, 443, 3000, 9090, 9100, 3100, 9080, 9191, 9091 } accept
         udp dport 53 accept
         tcp dport 53 accept
     }
@@ -434,7 +413,7 @@ EOF
         iptables -P OUTPUT ACCEPT
         iptables -A INPUT -i lo -j ACCEPT
         iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-        for port in 22 80 443 8083 3000 9090 9100 3100 9080 9191 9091; do
+        for port in 22 80 443 3000 9090 9100 3100 9080 9191 9091; do
             iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
         done
         iptables -A INPUT -p udp --dport 53 -j ACCEPT
@@ -481,14 +460,7 @@ maxretry = 100
 findtime = 300
 bantime = 3600
 
-[hestia-auth]
-enabled = true
-port = 8083
-filter = hestia-auth
-logpath = /var/log/hestia/auth.log
-maxretry = 5
-findtime = 600
-bantime = 86400
+
 EOL
 
 # Создаем фильтры для fail2ban
@@ -498,11 +470,7 @@ failregex = ^<HOST> -.*"(GET|POST|HEAD).*HTTP.*" (404|503|400|499) .*$
 ignoreregex =
 EOL
 
-cat > /etc/fail2ban/filter.d/hestia-auth.conf <<EOL
-[Definition]
-failregex = .*Authentication failed for .* from <HOST>
-ignoreregex =
-EOL
+
 
 systemctl enable --now fail2ban
 check_error "Настройка fail2ban"
@@ -993,7 +961,6 @@ check_error "Настройка Grafana"
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения
-HESTIA_PASSWORD=$(generate_password)
 PHPMYADMIN_PASSWORD=$(generate_password)
 
 # Получаем IP адрес сервера
@@ -1003,7 +970,7 @@ echo -e "\n${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУПНЫЕ С�
 echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙСЫ${NC}${LIGHT_BLUE}${LINE_V:0:42}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}    ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}      ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}   ${LIGHT_YELLOW}http://${SERVER_IP}:9090${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}         ${LIGHT_YELLOW}http://${SERVER_IP}:3100${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
@@ -1014,7 +981,7 @@ echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДАННЫЕ ДЛЯ 
 echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ ДАННЫЕ${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}     ${LIGHT_YELLOW}TrafficHestia${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$HESTIA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
+
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}       ${LIGHT_YELLOW}TrafficGrafana${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$GRAFANA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}TrafficPrometheus${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PROMETHEUS_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}TrafficLoki${NC}        ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$LOKI_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:6}${LINE_V}${NC}"
@@ -1047,12 +1014,9 @@ echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📦 Composer:${NC}${LIGHT_PURPLE}${LINE_V:0:45}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}curl -sS https://getcomposer.org/installer | php${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}mv composer.phar /usr/local/bin/composer${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}${LIGHT_PURPLE}${LINE_V:0:45}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}bash hst-install.sh --lang 'ru' --hostname \$(hostname) --username 'admin' --email 'admin@example.com' --password 'password' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
-echo -e "\n${LIGHT_CYAN}${ARROW}${NC} После установки Hestia CP используйте: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"
+
 
 # Загружаем диагностический скрипт
 echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДИАГНОСТИКА СИСТЕМЫ${NC} ${LIGHT_PURPLE}${STAR}${NC}"

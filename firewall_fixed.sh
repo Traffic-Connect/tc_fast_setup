@@ -94,8 +94,7 @@ table inet filter {
         # HTTP/HTTPS
         tcp dport { 80, 443 } accept
         
-        # Hestia CP
-        tcp dport 8083 accept
+        
         
         # Сервисы мониторинга
         tcp dport { 9090, 9100, 3100, 9080, 9191, 9091, 3000 } accept
@@ -182,8 +181,7 @@ setup_iptables() {
     iptables -A INPUT -p tcp --dport 80 -j ACCEPT
     iptables -A INPUT -p tcp --dport 443 -j ACCEPT
     
-    # Hestia CP
-    iptables -A INPUT -p tcp --dport 8083 -j ACCEPT
+    
     
     # Сервисы мониторинга
     echo -e "${CYAN}${ARROW}${NC} Открытие портов мониторинга..."
@@ -335,7 +333,7 @@ main() {
     echo -e "${GREEN}==============================${NC}"
     echo ""
     echo -e "${YELLOW}💡 Доступные веб-интерфейсы:${NC}"
-    echo -e "  ${CYAN}${ARROW}${NC} Hestia CP: https://$(hostname -I | awk '{print $1}'):8083"
+    
     echo -e "  ${CYAN}${ARROW}${NC} Grafana: http://$(hostname -I | awk '{print $1}'):3000"
     echo -e "  ${CYAN}${ARROW}${NC} Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
     echo -e "  ${CYAN}${ARROW}${NC} Loki: http://$(hostname -I | awk '{print $1}'):3100"

@@ -64,7 +64,7 @@ diagnose_services() {
     echo -e "${PURPLE}${BOLD}🔧 ДИАГНОСТИКА СЕРВИСОВ${NC}"
     echo -e "${PURPLE}======================${NC}"
     
-    local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "nginx" "mariadb" "mysql" "hestia")
+    local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "nginx" "mariadb" "mysql")
     
     for service in "${services[@]}"; do
         if systemctl is-active --quiet "$service" 2>/dev/null; then
@@ -238,7 +238,7 @@ show_interfaces() {
     
     local ip=$(hostname -I | awk '{print $1}' 2>/dev/null || echo 'localhost')
     
-    echo -e "  ${CYAN}${ARROW}${NC} Hestia CP: https://$ip:8083"
+    
     echo -e "  ${CYAN}${ARROW}${NC} Grafana: http://$ip:3000"
     echo -e "  ${CYAN}${ARROW}${NC} Prometheus: http://$ip:9090"
     echo -e "  ${CYAN}${ARROW}${NC} Loki: http://$ip:3100"
