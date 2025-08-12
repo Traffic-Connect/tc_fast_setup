@@ -800,22 +800,36 @@ fi
 # 10. Установка Pushgateway
 print_header "📤 УСТАНОВКА PUSHGATEWAY"
 echo "=== ОТЛАДКА: Начинаем установку Pushgateway ==="
-{
-    wget https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
-    tar xvf /tmp/pushgateway.tar.gz -C /tmp/
-    mv /tmp/pushgateway-1.6.1.linux-amd64/pushgateway /usr/local/bin/
-    useradd --no-create-home --shell /bin/false pushgateway
-    chown pushgateway:pushgateway /usr/local/bin/pushgateway
 
-    # Генерируем пароль для Pushgateway
-    PUSHGATEWAY_PASSWORD=$(generate_password)
-    
-    # Создаем файл с паролем для Pushgateway
-    echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
-    chown pushgateway:pushgateway /etc/pushgateway/web.yml
-    chmod 600 /etc/pushgateway/web.yml
+# Проверяем доступность GitHub
+if ! curl -s --max-time 10 --connect-timeout 5 https://github.com > /dev/null 2>&1; then
+    echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к GitHub, пропускаем установку Pushgateway${NC}"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Pushgateway можно установить позже вручную"
+    check_error "Установка Pushgateway (пропущена)"
+else
+    {
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Pushgateway..."
+        if ! timeout 60 wget --timeout=30 --tries=3 https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz; then
+            echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Pushgateway, пропускаем установку${NC}"
+            exit 0
+        fi
+        
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Распаковка Pushgateway..."
+        tar xvf /tmp/pushgateway.tar.gz -C /tmp/
+        mv /tmp/pushgateway-1.6.1.linux-amd64/pushgateway /usr/local/bin/
+        useradd --no-create-home --shell /bin/false pushgateway 2>/dev/null || true
+        chown pushgateway:pushgateway /usr/local/bin/pushgateway
 
-    cat > /etc/systemd/system/pushgateway.service <<EOF
+        # Генерируем пароль для Pushgateway
+        PUSHGATEWAY_PASSWORD=$(generate_password)
+        
+        # Создаем директорию и файл с паролем для Pushgateway
+        mkdir -p /etc/pushgateway
+        echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
+        chown pushgateway:pushgateway /etc/pushgateway/web.yml
+        chmod 600 /etc/pushgateway/web.yml
+
+        cat > /etc/systemd/system/pushgateway.service <<EOF
 [Unit]
 Description=Prometheus Pushgateway
 After=network.target
@@ -831,33 +845,46 @@ ExecStart=/usr/local/bin/pushgateway \\
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable pushgateway
-    systemctl start pushgateway
-} > /dev/null 2>&1
-check_error "Установка Pushgateway"
+        systemctl daemon-reload
+        systemctl enable pushgateway
+        systemctl start pushgateway
+    } > /dev/null 2>&1
+    check_error "Установка Pushgateway"
+fi
 
 # 11. Установка Loki и Promtail
 print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
 echo "=== ОТЛАДКА: Начинаем установку Loki и Promtail ==="
-{
-    LOKI_VERSION="2.9.1"
-    
-    # Генерируем пароль для Loki
-    LOKI_PASSWORD=$(generate_password)
-    
-    # Установка Loki
-    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip
-    unzip /tmp/loki.zip -d /tmp/
-    mv /tmp/loki-linux-amd64 /usr/local/bin/loki
-    chmod +x /usr/local/bin/loki
 
-    useradd --no-create-home --shell /bin/false loki
-    mkdir -p /etc/loki /var/lib/loki
-    chown loki:loki /var/lib/loki
+# Проверяем доступность GitHub
+if ! curl -s --max-time 10 --connect-timeout 5 https://github.com > /dev/null 2>&1; then
+    echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к GitHub, пропускаем установку Loki и Promtail${NC}"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Loki и Promtail можно установить позже вручную"
+    check_error "Установка Loki и Promtail (пропущена)"
+else
+    {
+        LOKI_VERSION="2.9.1"
+        
+        # Генерируем пароль для Loki
+        LOKI_PASSWORD=$(generate_password)
+        
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Loki..."
+        if ! timeout 60 wget --timeout=30 --tries=3 https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip; then
+            echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Loki, пропускаем установку${NC}"
+            exit 0
+        fi
+        
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Loki..."
+        unzip /tmp/loki.zip -d /tmp/
+        mv /tmp/loki-linux-amd64 /usr/local/bin/loki
+        chmod +x /usr/local/bin/loki
 
-    # Создаем файл с пользователями для Loki
-    cat > /etc/loki/users.yaml <<EOF
+        useradd --no-create-home --shell /bin/false loki 2>/dev/null || true
+        mkdir -p /etc/loki /var/lib/loki
+        chown loki:loki /var/lib/loki
+
+        # Создаем файл с пользователями для Loki
+        cat > /etc/loki/users.yaml <<EOF
 users:
   - username: TrafficLoki
     password: $LOKI_PASSWORD
@@ -865,10 +892,10 @@ users:
       - read
       - write
 EOF
-    chown loki:loki /etc/loki/users.yaml
-    chmod 600 /etc/loki/users.yaml
+        chown loki:loki /etc/loki/users.yaml
+        chmod 600 /etc/loki/users.yaml
 
-    cat > /etc/loki/loki-config.yaml <<EOF
+        cat > /etc/loki/loki-config.yaml <<EOF
 auth_enabled: true
 
 auth:
@@ -919,7 +946,7 @@ ruler:
   alertmanager_url: http://localhost:9093
 EOF
 
-    cat > /etc/systemd/system/loki.service <<EOF
+        cat > /etc/systemd/system/loki.service <<EOF
 [Unit]
 Description=Loki log aggregation system
 After=network.target
@@ -934,17 +961,22 @@ ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki-config.yaml
 WantedBy=multi-user.target
 EOF
 
-    # Установка Promtail
-    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip -O /tmp/promtail.zip
-    unzip /tmp/promtail.zip -d /tmp/
-    mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
-    chmod +x /usr/local/bin/promtail
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Promtail..."
+        if ! timeout 60 wget --timeout=30 --tries=3 https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip -O /tmp/promtail.zip; then
+            echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Promtail, пропускаем установку${NC}"
+            exit 0
+        fi
+        
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Promtail..."
+        unzip /tmp/promtail.zip -d /tmp/
+        mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+        chmod +x /usr/local/bin/promtail
 
-    useradd --no-create-home --shell /bin/false promtail
-    mkdir -p /etc/promtail
-    chown promtail:promtail /etc/promtail
+        useradd --no-create-home --shell /bin/false promtail 2>/dev/null || true
+        mkdir -p /etc/promtail
+        chown promtail:promtail /etc/promtail
 
-    cat > /etc/promtail/promtail-config.yaml <<EOF
+        cat > /etc/promtail/promtail-config.yaml <<EOF
 server:
   http_listen_port: 9080
   http_listen_address: 0.0.0.0
@@ -966,7 +998,7 @@ scrape_configs:
       __path__: /var/log/*log
 EOF
 
-    cat > /etc/systemd/system/promtail.service <<EOF
+        cat > /etc/systemd/system/promtail.service <<EOF
 [Unit]
 Description=Promtail log shipping agent
 After=network.target
@@ -980,11 +1012,12 @@ ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail-config.yam
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable --now loki
-    systemctl enable --now promtail
-} > /dev/null 2>&1
-check_error "Установка Loki и Promtail"
+        systemctl daemon-reload
+        systemctl enable --now loki
+        systemctl enable --now promtail
+    } > /dev/null 2>&1
+    check_error "Установка Loki и Promtail"
+fi
 
 # 12. Настройка экспортера для fail2ban
 print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
