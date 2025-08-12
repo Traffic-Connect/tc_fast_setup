@@ -424,7 +424,7 @@ fi
 
 # Принудительный перезапуск сервисов после настройки файрвола
 echo -e "${CYAN}${ARROW}${NC} Перезапуск сервисов для применения настроек файрвола..."
-local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "node_exporter")
+services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "node_exporter")
 for service in "${services[@]}"; do
     if systemctl is-active --quiet "$service" 2>/dev/null; then
         systemctl restart "$service" 2>/dev/null || true
@@ -435,6 +435,19 @@ done
 # Ждем запуска сервисов
 echo -e "${CYAN}${ARROW}${NC} Ожидание запуска сервисов..."
 sleep 10
+
+# Дополнительная диагностика сервисов
+echo -e "${CYAN}${ARROW}${NC} Проверка статуса сервисов..."
+for service in "${services[@]}"; do
+    if systemctl is-active --quiet "$service" 2>/dev/null; then
+        echo -e "  ${GREEN}${CHECK_MARK}${NC} $service: АКТИВЕН"
+    else
+        echo -e "  ${RED}${CROSS_MARK}${NC} $service: НЕ АКТИВЕН"
+        # Пытаемся запустить сервис
+        systemctl start "$service" 2>/dev/null || true
+        echo -e "  ${CYAN}${ARROW}${NC} Попытка запуска $service"
+    fi
+done
 
 # 5. Настройка fail2ban
 print_header "🛡️ НАСТРОЙКА FAIL2BAN"
