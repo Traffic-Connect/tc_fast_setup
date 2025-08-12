@@ -1,27 +1,7 @@
 #!/bin/bash
+set -e
 
-# Красивый заголовок скрипта
-echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - АВТОМАТИЧЕСКАЯ УСТАНОВКА${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-# Проверка root
-if [ "$(id -u)" != "0" ]; then
-    echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
-    exit 1
-fi
-
-# Отображение системной информации
-echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-# Цвета для вывода
+# Цвета для вывода (определяем в начале)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -57,6 +37,43 @@ LINE_T="+"
 LINE_B="+"
 LINE_L="+"
 LINE_R="+"
+
+# Функция проверки зависимостей
+check_dependencies() {
+    local deps=("curl" "wget" "unzip" "openssl" "systemctl" "apt")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${LIGHT_RED}${CROSS_MARK} Отсутствуют необходимые зависимости: ${missing[*]}${NC}" 1>&2
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установите их вручную или обновите систему" 1>&2
+        exit 1
+    fi
+}
+
+# Функция безопасной генерации пароля
+generate_password() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -base64 12 | tr -d "=+/" | cut -c1-16
+    elif command -v tr >/dev/null 2>&1 && [ -r /dev/urandom ]; then
+        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16
+    else
+        echo "defaultPassword123"
+    fi
+}
+
+# Функция безопасного удаления файла
+safe_remove() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        rm -f "$file"
+    fi
+}
 
 # Функция проверки ошибок
 check_error() {
@@ -94,6 +111,30 @@ show_progress() {
         echo
     fi
 }
+
+# Проверка зависимостей
+check_dependencies
+
+# Проверка root
+if [ "$(id -u)" != "0" ]; then
+    echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
+    exit 1
+fi
+
+# Красивый заголовок скрипта
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - АВТОМАТИЧЕСКАЯ УСТАНОВКА${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+# Отображение системной информации
+echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
 # 1. Очистка системы
 print_header "🧹 ОЧИСТКА СИСТЕМЫ"
@@ -221,7 +262,7 @@ print_header "🌐 УСТАНОВКА HESTIA CP"
         echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
         
         # Генерируем случайный пароль высокой сложности для Hestia CP
-        HESTIA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+        HESTIA_PASSWORD=$(generate_password)
         echo -e "${BLUE}[Инфо] Сгенерирован пароль для Hestia CP: $HESTIA_PASSWORD${NC}"
         
         # Запускаем установку с автоматическими ответами на вопросы
@@ -311,7 +352,8 @@ print_header "🌐 УСТАНОВКА HESTIA CP"
             fi
         fi
         
-        rm -f hst-install.sh /tmp/hestia_install.log
+        safe_remove hst-install.sh
+        safe_remove /tmp/hestia_install.log
         
         # Устанавливаем зависимости Hestia CP
         echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка зависимостей Hestia CP..."
@@ -634,7 +676,7 @@ print_header "📈 УСТАНОВКА PROMETHEUS"
     chown prometheus:prometheus /usr/local/bin/promtool
 
     # Генерируем пароль для Prometheus
-    PROMETHEUS_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    PROMETHEUS_PASSWORD=$(generate_password)
     
     cat > /etc/prometheus/prometheus.yml <<EOF
 global:
@@ -734,7 +776,7 @@ print_header "📤 УСТАНОВКА PUSHGATEWAY"
     chown pushgateway:pushgateway /usr/local/bin/pushgateway
 
     # Генерируем пароль для Pushgateway
-    PUSHGATEWAY_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    PUSHGATEWAY_PASSWORD=$(generate_password)
     
     # Создаем файл с паролем для Pushgateway
     echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
@@ -769,7 +811,7 @@ print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
     LOKI_VERSION="2.9.1"
     
     # Генерируем пароль для Loki
-    LOKI_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    LOKI_PASSWORD=$(generate_password)
     
     # Установка Loki
     wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip
@@ -968,7 +1010,7 @@ print_header "⚙️ НАСТРОЙКА GRAFANA"
     done
 
     # Генерируем пароль для Grafana
-    GRAFANA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+    GRAFANA_PASSWORD=$(generate_password)
     grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
 
     until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
@@ -996,8 +1038,8 @@ check_error "Настройка Grafana"
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения
-HESTIA_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
-PHPMYADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-16)
+HESTIA_PASSWORD=$(generate_password)
+PHPMYADMIN_PASSWORD=$(generate_password)
 
 # Получаем IP адрес сервера
 SERVER_IP=$(hostname -I | awk '{print $1}')

@@ -1,7 +1,7 @@
 #!/bin/bash
+set -e
 
-# Улучшенная версия скрипта установки с таймаутами и обработкой ошибок
-# Цвета для вывода
+# Цвета для вывода (определяем в начале)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -38,50 +38,40 @@ LINE_B="+"
 LINE_L="+"
 LINE_R="+"
 
-# Файл для отслеживания прогресса
-PROGRESS_FILE="/tmp/tc_setup_progress"
-
-# Красивый заголовок скрипта
-echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - АВТОМАТИЧЕСКАЯ УСТАНОВКА${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-# Проверка root
-if [ "$(id -u)" != "0" ]; then
-    echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
-    exit 1
-fi
-
-# Отображение системной информации
-echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-# Функция для выполнения команд с таймаутом
-run_with_timeout() {
-    local timeout=$1
-    shift
-    local description="$1"
-    shift
+# Функция проверки зависимостей
+check_dependencies() {
+    local deps=("curl" "wget" "unzip" "openssl" "systemctl" "apt")
+    local missing=()
     
-    echo -e "${BLUE}[Выполнение] $description (таймаут: ${timeout}с)${NC}"
-    
-    if timeout "$timeout" bash -c "$*"; then
-        echo -e "${GREEN}${CHECK_MARK} [OK] $description${NC}"
-        return 0
-    else
-        local exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-            echo -e "${RED}${CROSS_MARK} [ТАЙМАУТ] $description превысил лимит времени ${timeout}с${NC}"
-        else
-            echo -e "${RED}${CROSS_MARK} [ОШИБКА] $description завершился с кодом $exit_code${NC}"
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing+=("$dep")
         fi
-        return $exit_code
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${LIGHT_RED}${CROSS_MARK} Отсутствуют необходимые зависимости: ${missing[*]}${NC}" 1>&2
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установите их вручную или обновите систему" 1>&2
+        exit 1
+    fi
+}
+
+# Функция безопасной генерации пароля
+generate_password() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -base64 12 | tr -d "=+/" | cut -c1-16
+    elif command -v tr >/dev/null 2>&1 && [ -r /dev/urandom ]; then
+        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16
+    else
+        echo "defaultPassword123"
+    fi
+}
+
+# Функция безопасного удаления файла
+safe_remove() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        rm -f "$file"
     fi
 }
 
@@ -122,140 +112,976 @@ show_progress() {
     fi
 }
 
-# Функция для проверки и очистки блокировок APT
-check_and_fix_apt() {
-    echo -e "${CYAN}Проверка состояния APT...${NC}"
-    
-    # Проверяем блокировки
-    if lsof /var/lib/dpkg/lock-frontend 2>/dev/null; then
-        echo -e "${YELLOW}⚠️ Обнаружена блокировка APT. Ожидание...${NC}"
-        sleep 30
-        
-        # Если все еще заблокировано, принудительно очищаем
-        if lsof /var/lib/dpkg/lock-frontend 2>/dev/null; then
-            echo -e "${YELLOW}⚠️ Принудительная очистка блокировок APT...${NC}"
-            pkill -f apt 2>/dev/null || true
-            pkill -f dpkg 2>/dev/null || true
-            sleep 5
-            
-            rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
-            rm -f /var/lib/dpkg/lock 2>/dev/null || true
-            rm -f /var/cache/apt/archives/lock 2>/dev/null || true
-            rm -f /var/lib/apt/lists/lock 2>/dev/null || true
-            
-            dpkg --configure -a 2>/dev/null || true
-        fi
-    fi
-    
-    echo -e "${GREEN}✅ APT готов к работе${NC}"
-}
+# Проверка зависимостей
+check_dependencies
 
-# Функция для сохранения прогресса
-save_progress() {
-    echo "$1" > "$PROGRESS_FILE"
-}
-
-# Функция для загрузки прогресса
-load_progress() {
-    if [ -f "$PROGRESS_FILE" ]; then
-        cat "$PROGRESS_FILE"
-    else
-        echo "0"
-    fi
-}
-
-# Загружаем текущий прогресс
-CURRENT_STEP=$(load_progress)
-
-# 1. Очистка системы (если не выполнена)
-if [ "$CURRENT_STEP" -lt 1 ]; then
-    print_header "🧹 ОЧИСТКА СИСТЕМЫ"
-    check_and_fix_apt
-    
-    run_with_timeout 300 "Очистка системы" '
-        systemctl stop grafana-server 2>/dev/null || true
-        apt purge -y grafana* 2>/dev/null || true
-        rm -rf /etc/apt/sources.list.d/grafana* /usr/share/keyrings/grafana.gpg
-        apt autoremove -y
-    '
-    check_error "Очистка системы"
-    save_progress 1
+# Проверка root
+if [ "$(id -u)" != "0" ]; then
+    echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
+    exit 1
 fi
+
+# Красивый заголовок скрипта
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - АВТОМАТИЧЕСКАЯ УСТАНОВКА${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+# Отображение системной информации
+echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
+echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+# 1. Очистка системы
+print_header "🧹 ОЧИСТКА СИСТЕМЫ"
+{
+    systemctl stop grafana-server 2>/dev/null || true
+    apt purge -y grafana* 2>/dev/null || true
+    rm -rf /etc/apt/sources.list.d/grafana* /usr/share/keyrings/grafana.gpg
+    apt autoremove -y
+    apt update
+} > /dev/null 2>&1
 
 # Установка временной зоны
 timedatectl set-timezone Europe/Minsk
 
-# 2. Обновление системы и установка базовых пакетов (если не выполнена)
-if [ "$CURRENT_STEP" -lt 2 ]; then
-    print_header "📦 УСТАНОВКА БАЗОВЫХ ПАКЕТОВ"
+# 2. Обновление системы и установка базовых пакетов
+print_header "📦 УСТАНОВКА БАЗОВЫХ ПАКЕТОВ"
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление списка пакетов..."
+apt update > /dev/null 2>&1
+show_progress 1 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление системы..."
+apt upgrade -y > /dev/null 2>&1
+show_progress 2 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов..."
+apt install -y fail2ban iptables-persistent netfilter-persistent nftables curl wget \
+               software-properties-common apt-transport-https python3 \
+               python3-pip python3-venv git gnupg2 ca-certificates \
+               adduser libfontconfig1 unzip htop ncdu > /dev/null 2>&1
+show_progress 3 4
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение установки..."
+show_progress 4 4
+check_error "Установка базовых пакетов"
+
+# 3. Установка Composer (требуется для Hestia CP)
+print_header "📦 УСТАНОВКА COMPOSER"
+{
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer..."
+    curl -sS https://getcomposer.org/installer | php
+    mv composer.phar /usr/local/bin/composer
+    chmod +x /usr/local/bin/composer
     
-    check_and_fix_apt
+    # Устанавливаем зависимости PHP
+    apt install -y php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm
     
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление списка пакетов..."
-    run_with_timeout 300 "Обновление списка пакетов" 'apt update'
-    show_progress 1 4
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Настройка Composer..."
+    composer --version
+} > /dev/null 2>&1
+check_error "Установка Composer"
+
+# 4. Установка Hestia CP
+print_header "🌐 УСТАНОВКА HESTIA CP"
+{
+    # Расширенная проверка наличия Hestia CP
+    HESTIA_INSTALLED=false
     
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление системы..."
-    # Устанавливаем переменные среды для неинтерактивной установки
-    export DEBIAN_FRONTEND=noninteractive
-    export APT_LISTCHANGES_FRONTEND=none
+    # Проверяем различные признаки установки Hestia CP
+    if [ -f "/usr/local/hestia/bin/v-list" ] || [ -f "/usr/local/hestia/bin/v-add-user" ]; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдены бинарные файлы Hestia CP${NC}"
+    fi
     
-    run_with_timeout 1800 "Обновление системы" '
-        apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
-    '
-    show_progress 2 4
+    if [ -d "/usr/local/hestia" ]; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдена директория Hestia CP${NC}"
+    fi
     
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов..."
-    run_with_timeout 900 "Установка базовых пакетов" '
-        apt install -y fail2ban iptables-persistent netfilter-persistent nftables curl wget \
-                       software-properties-common apt-transport-https python3 \
-                       python3-pip python3-venv git gnupg2 ca-certificates \
-                       adduser libfontconfig1 unzip htop ncdu
-    '
-    show_progress 3 4
+    if systemctl list-unit-files | grep -q hestia; then
+        HESTIA_INSTALLED=true
+        echo -e "${BLUE}[Инфо] Найдена служба Hestia CP${NC}"
+    fi
     
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение установки..."
-    show_progress 4 4
-    check_error "Установка базовых пакетов"
-    save_progress 2
+    if [ "$HESTIA_INSTALLED" = true ]; then
+        echo -e "${BLUE}[Инфо] Hestia CP уже установлен. Пропускаем установку.${NC}"
+        
+        # Проверяем и запускаем службу если нужно
+        # Проверяем различные варианты имен служб Hestia
+        HESTIA_SERVICE=""
+        for service_name in hestia hestia-web hestia-api hestia-cp; do
+            if systemctl list-unit-files | grep -q "$service_name"; then
+                HESTIA_SERVICE="$service_name"
+                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
+                break
+            fi
+        done
+        
+        if [ -n "$HESTIA_SERVICE" ]; then
+            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
+            else
+                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
+                systemctl start "$HESTIA_SERVICE"
+                sleep 5
+                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
+                else
+                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
+                    echo -e "${BLUE}[Инфо] Попытка перезапуска...${NC}"
+                    systemctl restart "$HESTIA_SERVICE"
+                    sleep 5
+                    if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                        echo -e "${GREEN}Служба $HESTIA_SERVICE перезапущена успешно${NC}"
+                    else
+                        echo -e "${YELLOW}Предупреждение: Служба $HESTIA_SERVICE не запущена${NC}"
+                        echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                        systemctl status "$HESTIA_SERVICE" --no-pager || true
+                    fi
+                fi
+            fi
+        else
+            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
+            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
+            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
+        fi
+    else
+        echo -e "${BLUE}[Инфо] Hestia CP не найден. Начинаем установку...${NC}"
+        echo -e "${BLUE}[Инфо] Загрузка установочного скрипта...${NC}"
+        wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
+        
+        echo -e "${BLUE}[Инфо] Запуск установки (это может занять несколько минут)...${NC}"
+        # Получаем реальный hostname системы
+        SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+        echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
+        
+        # Генерируем случайный пароль высокой сложности для Hestia CP
+        HESTIA_PASSWORD=$(generate_password)
+        echo -e "${BLUE}[Инфо] Сгенерирован пароль для Hestia CP: $HESTIA_PASSWORD${NC}"
+        
+        # Запускаем установку с автоматическими ответами на вопросы
+        echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
+        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficHestia' --email 'info@traffic.com' --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
+            # Проверяем успешность установки
+            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
+                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
+            elif grep -q "Goodbye" /tmp/hestia_install.log; then
+                echo -e "${YELLOW}Предупреждение: Установка завершена досрочно${NC}"
+                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
+                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
+                    echo -e "${GREEN}Hestia CP установлен успешно${NC}"
+                else
+                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
+                    cat /tmp/hestia_install.log
+                    exit 1
+                fi
+            else
+                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
+            fi
+        else
+            # Проверяем различные типы ошибок
+            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
+                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
+            elif grep -q "Error: Download composer installer" /tmp/hestia_install.log; then
+                echo -e "${YELLOW}Предупреждение: Ошибка загрузки Composer installer${NC}"
+                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
+                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
+                    echo -e "${GREEN}Hestia CP установлен успешно (несмотря на ошибку Composer)${NC}"
+                    echo -e "${BLUE}[Инфо] Composer можно установить позже вручную${NC}"
+                else
+                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
+                    cat /tmp/hestia_install.log
+                    exit 1
+                fi
+            elif grep -q "Congratulations" /tmp/hestia_install.log; then
+                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
+            else
+                echo -e "${RED}Ошибка установки Hestia CP${NC}"
+                cat /tmp/hestia_install.log
+                exit 1
+            fi
+        fi
+        
+        echo -e "${BLUE}[Инфо] Проверка работы службы...${NC}"
+        
+        # Проверяем различные варианты имен служб Hestia
+        HESTIA_SERVICE=""
+        for service_name in hestia hestia-web hestia-api hestia-cp; do
+            if systemctl list-unit-files | grep -q "$service_name"; then
+                HESTIA_SERVICE="$service_name"
+                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
+                break
+            fi
+        done
+        
+        if [ -n "$HESTIA_SERVICE" ]; then
+            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
+            else
+                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
+                systemctl start "$HESTIA_SERVICE"
+                sleep 5
+                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
+                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
+                else
+                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
+                    echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
+                    systemctl status "$HESTIA_SERVICE" --no-pager || true
+                fi
+            fi
+        else
+            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
+            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
+            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
+        fi
+        
+        # Проверяем и устанавливаем Composer если нужно
+        if ! command -v composer >/dev/null 2>&1; then
+            echo -e "${BLUE}[Инфо] Установка Composer...${NC}"
+            curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+            if command -v composer >/dev/null 2>&1; then
+                echo -e "${GREEN}Composer установлен успешно${NC}"
+            else
+                echo -e "${YELLOW}Предупреждение: Не удалось установить Composer${NC}"
+            fi
+        fi
+        
+        safe_remove hst-install.sh
+        safe_remove /tmp/hestia_install.log
+        
+        # Устанавливаем зависимости Hestia CP
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка зависимостей Hestia CP..."
+        if [ -f "/usr/local/hestia/bin/v-add-sys-dependencies" ]; then
+            /usr/local/hestia/bin/v-add-sys-dependencies
+        fi
+        
+        # Устанавливаем Composer зависимости для Hestia CP
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer зависимостей..."
+        if [ -d "/usr/local/hestia/web" ]; then
+            cd /usr/local/hestia/web
+            composer install --no-dev --optimize-autoloader
+            cd - > /dev/null
+        fi
+    fi
+}
+check_error "Установка Hestia CP"
+
+# 5. Firewall configuration (improved version)
+print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
+
+# Check nftables availability, otherwise use iptables
+if command -v nft >/dev/null 2>&1; then
+    echo -e "${BLUE}Using nftables (modern firewall)${NC}"
+    USE_NFTABLES=true
+else
+    echo -e "${BLUE}Using iptables${NC}"
+    USE_NFTABLES=false
 fi
 
-# 3. Установка Composer (если не выполнена)
-if [ "$CURRENT_STEP" -lt 3 ]; then
-    print_header "📦 УСТАНОВКА COMPOSER"
+if [ "$USE_NFTABLES" = true ]; then
+    # nftables configuration
+    cat > /etc/nftables.conf <<'EOF'
+#!/usr/sbin/nft -f
+
+# Clear all rules
+flush ruleset
+
+# Define tables
+table inet filter {
+    # Chains
+    chain input {
+        type filter hook input priority 0; policy drop;
+        
+        # Local interface
+        iif lo accept
+        
+        # Established connections
+        ct state established,related accept
+        
+        # ICMP (limited)
+        icmp type echo-request limit rate 1/second accept
+        icmp type echo-request drop
+        
+        # SSH (with brute force protection)
+        tcp dport 22 ct state new limit rate 5/minute accept
+        
+        # HTTP/HTTPS
+        tcp dport { 80, 443 } accept
+        
+        # Hestia CP
+        tcp dport 8083 accept
+        
+        # Monitoring services (accessible from outside)
+        tcp dport { 9090, 9100, 3100, 9080, 9191, 9091 } accept
+        
+        # Grafana
+        tcp dport 3000 accept
+        
+        # DNS
+        udp dport 53 accept
+        tcp dport 53 accept
+        
+        # Log suspicious activity
+        log prefix "nftables-dropped: " group 0
+    }
     
-    run_with_timeout 300 "Установка Composer" '
-        echo "Загрузка Composer..."
-        curl -sS https://getcomposer.org/installer | php
-        mv composer.phar /usr/local/bin/composer
-        chmod +x /usr/local/bin/composer
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+    
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# DDoS protection table
+table inet ddos {
+    chain input {
+        type filter hook input priority 10; policy accept;
         
-        # Устанавливаем зависимости PHP
-        apt install -y php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm
+        # SYN flood protection
+        tcp flags syn ct state new limit rate 10/second burst 25 packets accept
+        tcp flags syn ct state new drop
         
-        echo "Настройка Composer..."
-        composer --version
-    '
-    check_error "Установка Composer"
-    save_progress 3
-fi
-
-echo -e "\n${LIGHT_GREEN}🎉 Базовая установка завершена!${NC}"
-echo -e "${CYAN}Следующие этапы:${NC}"
-echo -e "  4. Установка Hestia CP"
-echo -e "  5. Настройка файрвола"
-echo -e "  6. Установка системы мониторинга"
-
-echo -e "\n${YELLOW}Для продолжения запустите:${NC}"
-echo -e "  ${GREEN}./continue_setup.sh${NC}"
-
-# Создаем скрипт продолжения
-cat > continue_setup.sh << 'EOF'
-#!/bin/bash
-# Продолжение установки с этапа 4
-./script_fixed.sh
+        # Port scanner protection
+        tcp flags & (fin|syn|rst|ack) == rst ct state new limit rate 1/second accept
+        tcp flags & (fin|syn|rst|ack) == rst ct state new drop
+    }
+}
 EOF
 
-chmod +x continue_setup.sh
+    # Apply nftables rules
+    nft -f /etc/nftables.conf
+    systemctl enable nftables
+    systemctl start nftables
+    
+    # Add Cloudflare rules (only if used)
+    echo -e "${BLUE}Adding Cloudflare rules...${NC}"
+    CLOUDFLARE_IPS=$(curl -s --max-time 10 https://www.cloudflare.com/ips-v4 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$CLOUDFLARE_IPS" ]; then
+        # Добавляем правила Cloudflare через команды nft
+        CLOUDFLARE_COUNT=0
+        for ip in $CLOUDFLARE_IPS; do
+            if nft add rule inet filter input tcp saddr "$ip" dport { 80, 443 } accept 2>/dev/null; then
+                CLOUDFLARE_COUNT=$((CLOUDFLARE_COUNT + 1))
+            fi
+        done
+        echo -e "${GREEN}Added $CLOUDFLARE_COUNT Cloudflare IP addresses${NC}"
+    else
+        echo -e "${YELLOW}Failed to load Cloudflare IP addresses${NC}"
+    fi
+    
+    # Save rules
+    nft list ruleset > /etc/nftables.conf
+    
+else
+    # iptables configuration (improved version)
+    iptables -F && iptables -X
+    iptables -P INPUT DROP
+    iptables -P FORWARD DROP
+    iptables -P OUTPUT ACCEPT
 
-echo -e "\n${GREEN}✅ Критические этапы завершены без зависания!${NC}"
+    # Basic rules
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+    # SSH with brute force protection
+    iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m limit --limit 5/minute --limit-burst 10 -j ACCEPT
+    iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j DROP
+
+    # HTTP/HTTPS
+    iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+    iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+    # Hestia CP
+    iptables -A INPUT -p tcp --dport 8083 -j ACCEPT
+
+    # Monitoring services (accessible from outside)
+    for port in 9090 9100 3100 9080 9191 9091; do
+        iptables -A INPUT -p tcp --dport $port -j ACCEPT
+    done
+    
+    # Grafana
+    iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
+
+    # DNS
+    iptables -A INPUT -p udp --dport 53 -j ACCEPT
+    iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+
+    # Cloudflare IPs (with error handling)
+    echo -e "${BLUE}Adding Cloudflare rules...${NC}"
+    CLOUDFLARE_IPS=$(curl -s --max-time 10 https://www.cloudflare.com/ips-v4 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$CLOUDFLARE_IPS" ]; then
+        for ip in $CLOUDFLARE_IPS; do
+            iptables -A INPUT -p tcp -s "$ip" --dport 80 -j ACCEPT
+            iptables -A INPUT -p tcp -s "$ip" --dport 443 -j ACCEPT
+        done
+        echo -e "${GREEN}Added $(echo "$CLOUDFLARE_IPS" | wc -w) Cloudflare IP addresses${NC}"
+    else
+        echo -e "${YELLOW}Failed to load Cloudflare IP addresses${NC}"
+    fi
+
+    # Attack protection (improved)
+    iptables -N SYN_FLOOD
+    iptables -A INPUT -p tcp --syn -j SYN_FLOOD
+    iptables -A SYN_FLOOD -m limit --limit 10/s --limit-burst 25 -j RETURN
+    iptables -A SYN_FLOOD -j DROP
+
+    # ICMP with limits
+    iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+    iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+
+    # Port scanner protection
+    iptables -N PORT_SCAN
+    iptables -A INPUT -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j PORT_SCAN
+    iptables -A PORT_SCAN -m limit --limit 1/s -j RETURN
+    iptables -A PORT_SCAN -j DROP
+
+    # Log suspicious activity
+    iptables -A INPUT -j LOG --log-prefix "iptables-dropped: " --log-level 4
+
+    # Save rules
+    netfilter-persistent save
+fi
+
+check_error "Firewall configuration"
+
+# Перезапускаем сервисы для применения новых настроек firewall
+echo -e "${BLUE}[Инфо] Перезапуск сервисов для применения настроек firewall...${NC}"
+systemctl restart grafana-server 2>/dev/null || true
+systemctl restart prometheus 2>/dev/null || true
+systemctl restart loki 2>/dev/null || true
+systemctl restart pushgateway 2>/dev/null || true
+systemctl restart node_exporter 2>/dev/null || true
+
+# 6. Настройка fail2ban
+print_header "🛡️ НАСТРОЙКА FAIL2BAN"
+cat > /etc/fail2ban/jail.local <<EOL
+[DEFAULT]
+ignoreip = 127.0.0.1/8
+bantime = 1h
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 3
+
+[nginx-botsearch]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 10
+findtime = 3600
+bantime = 86400
+
+[nginx-dos]
+enabled = true
+port = http,https
+filter = nginx-dos
+logpath = /var/log/nginx/access.log
+maxretry = 100
+findtime = 300
+bantime = 3600
+
+[hestia-auth]
+enabled = true
+port = 8083
+filter = hestia-auth
+logpath = /var/log/hestia/auth.log
+maxretry = 5
+findtime = 600
+bantime = 86400
+EOL
+
+# Создаем фильтры для fail2ban
+cat > /etc/fail2ban/filter.d/nginx-dos.conf <<EOL
+[Definition]
+failregex = ^<HOST> -.*"(GET|POST|HEAD).*HTTP.*" (404|503|400|499) .*$
+ignoreregex =
+EOL
+
+cat > /etc/fail2ban/filter.d/hestia-auth.conf <<EOL
+[Definition]
+failregex = .*Authentication failed for .* from <HOST>
+ignoreregex =
+EOL
+
+systemctl enable --now fail2ban
+check_error "Настройка fail2ban"
+
+# 7. Установка Grafana
+print_header "📊 УСТАНОВКА GRAFANA"
+{
+    wget https://dl.grafana.com/oss/release/grafana_10.4.3_amd64.deb -O /tmp/grafana.deb
+    dpkg -i /tmp/grafana.deb || apt-get install -fy
+    rm -f /tmp/grafana.deb
+    
+    # Настраиваем Grafana для доступа извне
+    cat > /etc/grafana/grafana.ini <<EOF
+[server]
+http_addr = 0.0.0.0
+http_port = 3000
+protocol = http
+domain = localhost
+root_url = %(protocol)s://%(domain)s:%(http_port)s/
+serve_from_sub_path = false
+
+[security]
+admin_user = admin
+admin_password = admin
+allow_embedding = true
+
+[auth.anonymous]
+enabled = false
+
+[users]
+allow_sign_up = false
+allow_org_create = false
+auto_assign_org = true
+auto_assign_org_role = Viewer
+EOF
+    
+    systemctl daemon-reload
+    systemctl enable grafana-server
+    systemctl start grafana-server
+} > /dev/null 2>&1
+check_error "Установка Grafana"
+
+# 8. Установка Prometheus
+print_header "📈 УСТАНОВКА PROMETHEUS"
+{
+    useradd --no-create-home --shell /bin/false prometheus 2>/dev/null || true
+    mkdir -p /etc/prometheus /var/lib/prometheus
+    chown prometheus:prometheus /var/lib/prometheus
+
+    PROM_VERSION="2.47.0"
+    wget https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz -O /tmp/prometheus.tar.gz
+    tar xvf /tmp/prometheus.tar.gz -C /tmp/
+    mv /tmp/prometheus-${PROM_VERSION}.linux-amd64/prometheus /usr/local/bin/
+    mv /tmp/prometheus-${PROM_VERSION}.linux-amd64/promtool /usr/local/bin/
+    chown prometheus:prometheus /usr/local/bin/prometheus
+    chown prometheus:prometheus /usr/local/bin/promtool
+
+    # Генерируем пароль для Prometheus
+    PROMETHEUS_PASSWORD=$(generate_password)
+    
+    cat > /etc/prometheus/prometheus.yml <<EOF
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['0.0.0.0:9090']
+  - job_name: 'node'
+    static_configs:
+      - targets: ['0.0.0.0:9100']
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['0.0.0.0:9080']
+  - job_name: 'fail2ban'
+    static_configs:
+      - targets: ['0.0.0.0:9191']
+  - job_name: 'pushgateway'
+    honor_labels: true
+    static_configs:
+      - targets: ['0.0.0.0:9091']
+EOF
+
+    # Создаем файл с паролем для Prometheus
+    echo "TrafficPrometheus:$PROMETHEUS_PASSWORD" > /etc/prometheus/web.yml
+    chown prometheus:prometheus /etc/prometheus/web.yml
+    chmod 600 /etc/prometheus/web.yml
+
+    cat > /etc/systemd/system/prometheus.service <<EOF
+[Unit]
+Description=Prometheus Monitoring
+After=network.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus \\
+    --config.file=/etc/prometheus/prometheus.yml \\
+    --storage.tsdb.path=/var/lib/prometheus \\
+    --web.listen-address=0.0.0.0:9090 \\
+    --web.enable-lifecycle \\
+    --web.config.file=/etc/prometheus/web.yml
+
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable prometheus
+    systemctl start prometheus
+} > /dev/null 2>&1
+check_error "Установка Prometheus"
+
+# 9. Установка Node Exporter
+print_header "🖥️ УСТАНОВКА NODE EXPORTER"
+{
+    wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
+    tar xvf /tmp/node_exporter.tar.gz -C /tmp/
+    mv /tmp/node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
+    useradd --no-create-home --shell /bin/false node_exporter
+    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+
+    cat > /etc/systemd/system/node_exporter.service <<EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:9100
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable node_exporter
+    systemctl start node_exporter
+} > /dev/null 2>&1
+check_error "Установка Node Exporter"
+
+# 10. Установка Pushgateway
+print_header "📤 УСТАНОВКА PUSHGATEWAY"
+{
+    wget https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
+    tar xvf /tmp/pushgateway.tar.gz -C /tmp/
+    mv /tmp/pushgateway-1.6.1.linux-amd64/pushgateway /usr/local/bin/
+    useradd --no-create-home --shell /bin/false pushgateway
+    chown pushgateway:pushgateway /usr/local/bin/pushgateway
+
+    # Генерируем пароль для Pushgateway
+    PUSHGATEWAY_PASSWORD=$(generate_password)
+    
+    # Создаем файл с паролем для Pushgateway
+    echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
+    chown pushgateway:pushgateway /etc/pushgateway/web.yml
+    chmod 600 /etc/pushgateway/web.yml
+
+    cat > /etc/systemd/system/pushgateway.service <<EOF
+[Unit]
+Description=Prometheus Pushgateway
+After=network.target
+
+[Service]
+User=pushgateway
+Group=pushgateway
+ExecStart=/usr/local/bin/pushgateway \\
+    --web.listen-address=0.0.0.0:9091 \\
+    --web.config.file=/etc/pushgateway/web.yml
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable pushgateway
+    systemctl start pushgateway
+} > /dev/null 2>&1
+check_error "Установка Pushgateway"
+
+# 11. Установка Loki и Promtail
+print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
+{
+    LOKI_VERSION="2.9.1"
+    
+    # Генерируем пароль для Loki
+    LOKI_PASSWORD=$(generate_password)
+    
+    # Установка Loki
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip
+    unzip /tmp/loki.zip -d /tmp/
+    mv /tmp/loki-linux-amd64 /usr/local/bin/loki
+    chmod +x /usr/local/bin/loki
+
+    useradd --no-create-home --shell /bin/false loki
+    mkdir -p /etc/loki /var/lib/loki
+    chown loki:loki /var/lib/loki
+
+    # Создаем файл с пользователями для Loki
+    cat > /etc/loki/users.yaml <<EOF
+users:
+  - username: TrafficLoki
+    password: $LOKI_PASSWORD
+    roles:
+      - read
+      - write
+EOF
+    chown loki:loki /etc/loki/users.yaml
+    chmod 600 /etc/loki/users.yaml
+
+    cat > /etc/loki/loki-config.yaml <<EOF
+auth_enabled: true
+
+auth:
+  basic_auth:
+    users_file: /etc/loki/users.yaml
+
+server:
+  http_listen_port: 3100
+  http_listen_address: 0.0.0.0
+  grpc_listen_port: 9096
+  grpc_listen_address: 0.0.0.0
+
+common:
+  path_prefix: /var/lib/loki
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+chunk_store_config:
+  max_look_back_period: 0s
+
+table_manager:
+  retention_deletes_enabled: false
+  retention_period: 0s
+
+ruler:
+  alertmanager_url: http://localhost:9093
+EOF
+
+    cat > /etc/systemd/system/loki.service <<EOF
+[Unit]
+Description=Loki log aggregation system
+After=network.target
+
+[Service]
+User=loki
+Group=loki
+Type=simple
+ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki-config.yaml
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Установка Promtail
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip -O /tmp/promtail.zip
+    unzip /tmp/promtail.zip -d /tmp/
+    mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+    chmod +x /usr/local/bin/promtail
+
+    useradd --no-create-home --shell /bin/false promtail
+    mkdir -p /etc/promtail
+    chown promtail:promtail /etc/promtail
+
+    cat > /etc/promtail/promtail-config.yaml <<EOF
+server:
+  http_listen_port: 9080
+  http_listen_address: 0.0.0.0
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+
+scrape_configs:
+- job_name: system
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: varlogs
+      __path__: /var/log/*log
+EOF
+
+    cat > /etc/systemd/system/promtail.service <<EOF
+[Unit]
+Description=Promtail log shipping agent
+After=network.target
+
+[Service]
+User=promtail
+Group=promtail
+ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail-config.yaml
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now loki
+    systemctl enable --now promtail
+} > /dev/null 2>&1
+check_error "Установка Loki и Promtail"
+
+# 12. Настройка экспортера для fail2ban
+print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
+{
+    apt-get install -y python3-prometheus-client
+    cat <<'EOF' | tee /usr/local/bin/fail2ban_exporter.py
+from prometheus_client import start_http_server, Gauge
+import subprocess
+import time
+
+banned_ips = Gauge('fail2ban_banned_ips', 'Number of banned IPs by fail2ban')
+
+def collect():
+    try:
+        output = subprocess.check_output(["fail2ban-client", "status"])
+        banned = 0
+        for line in output.decode().splitlines():
+            if "Total banned" in line:
+                banned = int(line.split(":")[1].strip())
+        banned_ips.set(banned)
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == '__main__':
+    start_http_server(9191)
+    while True:
+        collect()
+        time.sleep(15)
+EOF
+
+    chmod +x /usr/local/bin/fail2ban_exporter.py
+
+    cat <<EOF | tee /etc/systemd/system/fail2ban_exporter.service
+[Unit]
+Description=Fail2Ban Metrics Exporter
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/python3 /usr/local/bin/fail2ban_exporter.py
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now fail2ban_exporter
+} > /dev/null 2>&1
+check_error "Настройка мониторинга fail2ban"
+
+# 13. Настройка Grafana
+print_header "⚙️ НАСТРОЙКА GRAFANA"
+{
+    while ! systemctl is-active --quiet grafana-server; do
+        sleep 1
+    done
+
+    # Генерируем пароль для Grafana
+    GRAFANA_PASSWORD=$(generate_password)
+    grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
+
+    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
+      -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy"}' \
+      http://localhost:3000/api/datasources; do
+        sleep 2
+    done
+
+    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
+      -d '{"name":"Loki","type":"loki","url":"http://localhost:3100","access":"proxy"}' \
+      http://localhost:3000/api/datasources; do
+        sleep 2
+    done
+
+    DASHBOARD_IDS="1860 11074 13659 13639"
+    for DASH in $DASHBOARD_IDS; do
+        curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
+          -d "{\"dashboard\":$(curl -s https://grafana.com/api/dashboards/$DASH/revisions/latest/download),\"overwrite\":true}" \
+          http://localhost:3000/api/dashboards/import
+    done
+} > /dev/null 2>&1
+check_error "Настройка Grafana"
+
+# 14. Завершение установки
+print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
+
+# Генерируем все пароли для отображения
+HESTIA_PASSWORD=$(generate_password)
+PHPMYADMIN_PASSWORD=$(generate_password)
+
+# Получаем IP адрес сервера
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
+echo -e "\n${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУПНЫЕ СЕРВИСЫ${NC} ${LIGHT_BLUE}${STAR}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙСЫ${NC}${LIGHT_BLUE}${LINE_V:0:42}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}    ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}      ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}   ${LIGHT_YELLOW}http://${SERVER_IP}:9090${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}         ${LIGHT_YELLOW}http://${SERVER_IP}:3100${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}  ${LIGHT_YELLOW}http://${SERVER_IP}:9091${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДАННЫЕ ДЛЯ ВХОДА${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ ДАННЫЕ${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}     ${LIGHT_YELLOW}TrafficHestia${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$HESTIA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}       ${LIGHT_YELLOW}TrafficGrafana${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$GRAFANA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}TrafficPrometheus${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PROMETHEUS_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}TrafficLoki${NC}        ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$LOKI_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:6}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}   ${LIGHT_YELLOW}TrafficPushgateway${NC} ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PUSHGATEWAY_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${LIGHT_YELLOW}TrafficPhpMyAdmin${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PHPMYADMIN_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🎉 УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО! 🎉${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+# Дополнительная информация
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ПОЛЕЗНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Grafana:${NC}    ${LIGHT_YELLOW}/var/log/grafana/grafana.log${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Prometheus:${NC}  ${LIGHT_YELLOW}/var/log/prometheus/${NC}${LIGHT_PURPLE}${LINE_V:0:12}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Loki:${NC}        ${LIGHT_YELLOW}/var/log/loki/${NC}${LIGHT_PURPLE}${LINE_V:0:18}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Promtail:${NC}   ${LIGHT_YELLOW}/var/log/promtail/${NC}${LIGHT_PURPLE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📋 Логи Fail2ban:${NC}   ${LIGHT_YELLOW}/var/log/fail2ban.log${NC}${LIGHT_PURPLE}${LINE_V:0:10}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Все сервисы установлены и настроены!${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Рекомендуется перезагрузить сервер после установки"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Для мониторинга используйте Grafana: ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Для управления сервером используйте Hestia CP: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"

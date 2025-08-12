@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Firewall management script
 # Usage: ./fw.sh [command]
@@ -8,6 +9,49 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+# Функция проверки валидности IP адреса
+is_valid_ip() {
+    local ip="$1"
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        IFS='.' read -r -a octets <<< "$ip"
+        for octet in "${octets[@]}"; do
+            if [ "$octet" -lt 0 ] || [ "$octet" -gt 255 ]; then
+                return 1
+            fi
+        done
+        return 0
+    fi
+    return 1
+}
+
+# Функция безопасного удаления правил nftables
+safe_delete_nft_rule() {
+    local ip="$1"
+    local rule_handles=$(nft list ruleset | grep "ip saddr $ip" | grep "drop" | awk '{print $NF}' | sort -nr)
+    
+    if [ -n "$rule_handles" ]; then
+        for handle in $rule_handles; do
+            nft delete rule inet filter input handle "$handle" 2>/dev/null || true
+        done
+        return 0
+    fi
+    return 1
+}
+
+# Функция безопасного удаления правил iptables
+safe_delete_iptables_rule() {
+    local ip="$1"
+    local rule_lines=$(iptables -L INPUT -n --line-numbers | grep "$ip" | grep "DROP" | awk '{print $1}' | sort -nr)
+    
+    if [ -n "$rule_lines" ]; then
+        for line in $rule_lines; do
+            iptables -D INPUT "$line" 2>/dev/null || true
+        done
+        return 0
+    fi
+    return 1
+}
 
 # Root check
 if [ "$(id -u)" != "0" ]; then
@@ -72,6 +116,13 @@ block_ip() {
     fi
     
     IP=$1
+    
+    # Проверяем валидность IP адреса
+    if ! is_valid_ip "$IP"; then
+        echo -e "${RED}Invalid IP address: $IP${NC}"
+        exit 1
+    fi
+    
     echo -e "${YELLOW}Blocking IP: $IP${NC}"
     
     FIREWALL_TYPE=$(check_firewall)
@@ -97,16 +148,29 @@ unblock_ip() {
     fi
     
     IP=$1
+    
+    # Проверяем валидность IP адреса
+    if ! is_valid_ip "$IP"; then
+        echo -e "${RED}Invalid IP address: $IP${NC}"
+        exit 1
+    fi
+    
     echo -e "${YELLOW}Unblocking IP: $IP${NC}"
     
     FIREWALL_TYPE=$(check_firewall)
     if [ $? -eq 0 ]; then
         if [ "$FIREWALL_TYPE" = "nftables" ]; then
-            nft delete rule inet filter input ip saddr $IP drop 2>/dev/null
-            echo -e "${GREEN}IP $IP unblocked in nftables${NC}"
+            if safe_delete_nft_rule "$IP"; then
+                echo -e "${GREEN}IP $IP unblocked in nftables${NC}"
+            else
+                echo -e "${YELLOW}IP $IP not found in nftables rules${NC}"
+            fi
         else
-            iptables -D INPUT -s $IP -j DROP 2>/dev/null
-            echo -e "${GREEN}IP $IP unblocked in iptables${NC}"
+            if safe_delete_iptables_rule "$IP"; then
+                echo -e "${GREEN}IP $IP unblocked in iptables${NC}"
+            else
+                echo -e "${YELLOW}IP $IP not found in iptables rules${NC}"
+            fi
         fi
     else
         exit 1
@@ -155,7 +219,11 @@ update_cloudflare() {
             
             # Add new ones
             for ip in $CLOUDFLARE_IPS; do
-                nft add rule inet filter input tcp saddr $ip dport { 80, 443 } accept comment "cloudflare"
+                if is_valid_ip "$ip"; then
+                    nft add rule inet filter input tcp saddr $ip dport { 80, 443 } accept comment "cloudflare"
+                else
+                    echo -e "${YELLOW}Warning: Invalid Cloudflare IP: $ip${NC}"
+                fi
             done
         else
             # Remove old Cloudflare rules
@@ -163,8 +231,12 @@ update_cloudflare() {
             
             # Add new ones
             for ip in $CLOUDFLARE_IPS; do
-                iptables -A INPUT -p tcp -s "$ip" --dport 80 -j ACCEPT -m comment --comment "cloudflare"
-                iptables -A INPUT -p tcp -s "$ip" --dport 443 -j ACCEPT -m comment --comment "cloudflare"
+                if is_valid_ip "$ip"; then
+                    iptables -A INPUT -p tcp -s "$ip" --dport 80 -j ACCEPT -m comment --comment "cloudflare"
+                    iptables -A INPUT -p tcp -s "$ip" --dport 443 -j ACCEPT -m comment --comment "cloudflare"
+                else
+                    echo -e "${YELLOW}Warning: Invalid Cloudflare IP: $ip${NC}"
+                fi
             done
         fi
         echo -e "${GREEN}Updated $(echo "$CLOUDFLARE_IPS" | wc -w) Cloudflare IP addresses${NC}"

@@ -16,6 +16,44 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Функция проверки зависимостей
+check_dependencies() {
+    local deps=("wget" "unzip" "jq" "curl")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${RED}[ERROR] Missing dependencies: ${missing[*]}${NC}" >&2
+        exit 1
+    fi
+}
+
+# Функция безопасного создания директории
+safe_mkdir() {
+    local dir="$1"
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+    fi
+}
+
+# Функция проверки загрузки файла
+check_download() {
+    local file="$1"
+    local url="$2"
+    local description="$3"
+    
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+        echo -e "${RED}[ERROR] Failed to download $description${NC}" >&2
+        return 1
+    fi
+    return 0
+}
+
 # Error checking function
 check_error() {
     if [ $? -ne 0 ]; then
@@ -26,6 +64,9 @@ check_error() {
     fi
 }
 
+# Проверка зависимостей
+check_dependencies
+
 # 1. System preparation
 echo -e "${YELLOW}=== System preparation ===${NC}"
 apt update && apt install -y wget unzip jq libmaxminddb-dev
@@ -33,12 +74,18 @@ check_error "System update and package installation"
 
 systemctl stop promtail 2>/dev/null || true
 rm -f /tmp/positions.yaml
-mkdir -p /etc/promtail/geoip
+
+# Создаем директории безопасно
+safe_mkdir /etc/promtail
+safe_mkdir /etc/promtail/geoip
 
 # 2. Promtail installation
 echo -e "${YELLOW}=== Installing Promtail ===${NC}"
 wget -q "https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip" -O /tmp/promtail.zip
 check_error "Downloading Promtail"
+
+# Проверяем загрузку
+check_download "/tmp/promtail.zip" "" "Promtail archive" || exit 1
 
 unzip -q /tmp/promtail.zip -d /tmp/
 mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
@@ -53,6 +100,9 @@ check_error "Promtail installation"
 echo -e "${YELLOW}=== GeoIP configuration ===${NC}"
 wget -q "$GEOIP_DB_URL" -O /etc/promtail/geoip/GeoLite2-City.mmdb
 check_error "Downloading GeoIP database"
+
+# Проверяем загрузку GeoIP базы
+check_download "/etc/promtail/geoip/GeoLite2-City.mmdb" "" "GeoIP database" || exit 1
 
 chown -R promtail:promtail /etc/promtail
 
@@ -105,16 +155,31 @@ check_error "Configuration creation"
 
 # 5. Permission setup
 echo -e "${YELLOW}=== Setting up permissions ===${NC}"
+
+# Проверяем существование директории логов
+if [ ! -d "$LOG_DIR" ]; then
+    echo -e "${YELLOW}Warning: Log directory $LOG_DIR does not exist, creating...${NC}"
+    safe_mkdir "$LOG_DIR"
+fi
+
 chown -R root:adm "$LOG_DIR"
 chmod -R 750 "$LOG_DIR"
-setfacl -Rm u:promtail:rx "$LOG_DIR"
-setfacl -dm u:promtail:rx "$LOG_DIR"
+
+# Проверяем поддержку ACL перед использованием
+if command -v setfacl >/dev/null 2>&1; then
+    setfacl -Rm u:promtail:rx "$LOG_DIR" 2>/dev/null || true
+    setfacl -dm u:promtail:rx "$LOG_DIR" 2>/dev/null || true
+    echo -e "${GREEN}ACL permissions set${NC}"
+else
+    echo -e "${YELLOW}Warning: setfacl not available, using basic permissions${NC}"
+    chmod -R 755 "$LOG_DIR"
+fi
 
 # Access check
 if ! sudo -u promtail head -n 1 "$LOG_DIR"/*.log >/dev/null 2>&1; then
   echo -e "${RED}ERROR: Promtail cannot read logs${NC}"
   echo "Problematic files:"
-  sudo -u promtail ls -la "$LOG_DIR"/*.log
+  sudo -u promtail ls -la "$LOG_DIR"/*.log 2>/dev/null || echo "No log files found"
   exit 1
 fi
 check_error "Permission setup"
