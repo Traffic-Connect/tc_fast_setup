@@ -275,6 +275,7 @@ EOF
 
 # Функция безопасной установки Hestia CP
 safe_install_hestia() {
+    echo "=== ОТЛАДКА: Функция safe_install_hestia() ==="
     echo -e "${LIGHT_CYAN}${ARROW}${NC} Проверка и установка Hestia CP..."
     
     # Проверяем, не установлен ли уже Hestia CP
@@ -287,6 +288,7 @@ safe_install_hestia() {
     echo -e "${LIGHT_CYAN}${ARROW}${NC} Hestia CP можно установить позже вручную:"
     echo -e "${LIGHT_CYAN}${ARROW}${NC} wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh"
     echo -e "${LIGHT_CYAN}${ARROW}${NC} bash hst-install.sh --lang 'ru' --hostname \$(hostname) --username 'admin' --email 'admin@example.com' --password 'password' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force"
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP пропущен (установите вручную)"
     
     return 0
 }
@@ -385,6 +387,7 @@ check_error "Установка Hestia CP"
 
 # 5. Firewall configuration (improved version)
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
+echo "=== ОТЛАДКА: Начинаем настройку файрвола ==="
 
 # Check nftables availability, otherwise use iptables
 if command -v nft >/dev/null 2>&1; then
@@ -635,6 +638,7 @@ check_error "Настройка fail2ban"
 
 # 7. Установка Grafana
 print_header "📊 УСТАНОВКА GRAFANA"
+echo "=== ОТЛАДКА: Начинаем установку Grafana ==="
 {
     wget https://dl.grafana.com/oss/release/grafana_10.4.3_amd64.deb -O /tmp/grafana.deb
     dpkg -i /tmp/grafana.deb || apt-get install -fy
@@ -673,6 +677,7 @@ check_error "Установка Grafana"
 
 # 8. Установка Prometheus
 print_header "📈 УСТАНОВКА PROMETHEUS"
+echo "=== ОТЛАДКА: Начинаем установку Prometheus ==="
 {
     useradd --no-create-home --shell /bin/false prometheus 2>/dev/null || true
     mkdir -p /etc/prometheus /var/lib/prometheus
