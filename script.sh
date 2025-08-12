@@ -555,8 +555,8 @@ scrape_configs:
       - targets: ['0.0.0.0:9091']
 EOF
 
-    # Создаем файл с паролем для Prometheus
-    echo "TrafficPrometheus:$PROMETHEUS_PASSWORD" > /etc/prometheus/web.yml
+    # Создаем пустой файл конфигурации (без аутентификации)
+    touch /etc/prometheus/web.yml
     chown prometheus:prometheus /etc/prometheus/web.yml
     chmod 600 /etc/prometheus/web.yml
 
@@ -574,7 +574,7 @@ ExecStart=/usr/local/bin/prometheus \\
     --storage.tsdb.path=/var/lib/prometheus \\
     --web.listen-address=0.0.0.0:9090 \\
     --web.enable-lifecycle \\
-    --web.config.file=/etc/prometheus/web.yml
+
 
 Restart=always
 RestartSec=3
@@ -657,14 +657,8 @@ else
         useradd --no-create-home --shell /bin/false pushgateway 2>/dev/null || true
         chown pushgateway:pushgateway /usr/local/bin/pushgateway
 
-        # Генерируем пароль для Pushgateway
-        PUSHGATEWAY_PASSWORD=$(generate_password)
-        
-        # Создаем директорию и файл с паролем для Pushgateway
+        # Создаем директорию для Pushgateway
         mkdir -p /etc/pushgateway
-        echo "TrafficPushgateway:$PUSHGATEWAY_PASSWORD" > /etc/pushgateway/web.yml
-        chown pushgateway:pushgateway /etc/pushgateway/web.yml
-        chmod 600 /etc/pushgateway/web.yml
 
         cat > /etc/systemd/system/pushgateway.service <<EOF
 [Unit]
@@ -676,7 +670,7 @@ User=pushgateway
 Group=pushgateway
 ExecStart=/usr/local/bin/pushgateway \\
     --web.listen-address=0.0.0.0:9091 \\
-    --web.config.file=/etc/pushgateway/web.yml
+
 
 [Install]
 WantedBy=multi-user.target
@@ -702,8 +696,7 @@ else
     {
         LOKI_VERSION="2.9.1"
         
-        # Генерируем пароль для Loki
-        LOKI_PASSWORD=$(generate_password)
+
         
         echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Loki..."
         if ! timeout 60 wget --timeout=30 --tries=3 https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip -O /tmp/loki.zip; then
@@ -720,24 +713,10 @@ else
         mkdir -p /etc/loki /var/lib/loki
         chown loki:loki /var/lib/loki
 
-        # Создаем файл с пользователями для Loki
-        cat > /etc/loki/users.yaml <<EOF
-users:
-  - username: TrafficLoki
-    password: $LOKI_PASSWORD
-    roles:
-      - read
-      - write
-EOF
-        chown loki:loki /etc/loki/users.yaml
-        chmod 600 /etc/loki/users.yaml
+
 
         cat > /etc/loki/loki-config.yaml <<EOF
-auth_enabled: true
-
-auth:
-  basic_auth:
-    users_file: /etc/loki/users.yaml
+auth_enabled: false
 
 server:
   http_listen_port: 3100
@@ -981,9 +960,9 @@ echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ �
 echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
 
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}       ${LIGHT_YELLOW}TrafficGrafana${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$GRAFANA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}TrafficPrometheus${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PROMETHEUS_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}TrafficLoki${NC}        ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$LOKI_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:6}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}   ${LIGHT_YELLOW}TrafficPushgateway${NC} ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PUSHGATEWAY_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}   ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${LIGHT_YELLOW}TrafficPhpMyAdmin${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PHPMYADMIN_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
@@ -1027,12 +1006,4 @@ else
     echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить диагностический скрипт${NC}"
 fi
 
-# Загружаем скрипт исправления аутентификации
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка скрипта исправления аутентификации..."
-if wget -q https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/fix_auth.sh -O /usr/local/bin/fix_auth.sh; then
-    chmod +x /usr/local/bin/fix_auth.sh
-    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Скрипт исправления аутентификации загружен"
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Для исправления аутентификации: ${LIGHT_YELLOW}fix_auth.sh${NC}"
-else
-    echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить скрипт исправления аутентификации${NC}"
-fi
+

@@ -79,7 +79,7 @@ sudo bash install_hestia.sh
 - **`install_hestia.sh`** - отдельный скрипт установки Hestia CP
 - **`diagnostic.sh`** - универсальная диагностика системы
 - **`firewall_fixed.sh`** - исправленная настройка файрвола
-- **`fix_auth.sh`** - исправление проблем с аутентификацией
+
 - **`README.md`** - документация проекта
 
 ### Удаленные файлы (объединены в diagnostic.sh)
@@ -117,13 +117,7 @@ chmod +x firewall_fixed.sh
 ./firewall_fixed.sh
 ```
 
-### Если проблемы с аутентификацией
-```bash
-# Исправьте аутентификацию
-wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/fix_auth.sh
-chmod +x fix_auth.sh
-./fix_auth.sh
-```
+
 
 ## 🌐 Доступ к сервисам
 
@@ -133,9 +127,9 @@ chmod +x fix_auth.sh
 |--------|-----|-------|--------|
 
 | Grafana | http://IP:3000 | TrafficGrafana | JRPhqZbDgAZAoFPh |
-| Prometheus | http://IP:9090 | TrafficPrometheus | EL8YcD649BB80rZM |
-| Loki | http://IP:3100 | TrafficLoki | 6wnakjz8nvEV1YAf |
-| Pushgateway | http://IP:9091 | TrafficPushgateway | 9MBikpzCHrDeey3 |
+| Prometheus | http://IP:9090 | без аутентификации |
+| Loki | http://IP:3100 | без аутентификации |
+| Pushgateway | http://IP:9091 | без аутентификации |
 
 ## 📊 Мониторинг
 
