@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Отладочная информация
+echo "=== ОТЛАДКА: Скрипт запущен ==="
+echo "Время: $(date)"
+echo "PID: $$"
+echo "Пользователь: $(whoami)"
+echo "Директория: $(pwd)"
+echo "================================"
+
 # Цвета для вывода (определяем в начале)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -40,6 +48,7 @@ LINE_R="+"
 
 # Функция восстановления состояния системы
 restore_system_state() {
+    echo "=== ОТЛАДКА: Функция restore_system_state() ==="
     echo -e "${LIGHT_CYAN}${ARROW}${NC} Восстановление состояния системы..."
     
     # Завершаем зависшие процессы apt/dpkg
@@ -73,6 +82,7 @@ restore_system_state() {
 
 # Функция установки пакетов по частям
 install_packages_in_parts() {
+    echo "=== ОТЛАДКА: Функция install_packages_in_parts() ==="
     echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов по частям..."
     
     # Часть 1: Основные утилиты
@@ -181,6 +191,8 @@ safe_install() {
     local packages="$1"
     local description="$2"
     
+    echo "=== ОТЛАДКА: safe_install() - $description ==="
+    echo "Пакеты: $packages"
     echo -e "${LIGHT_CYAN}${ARROW}${NC} $description..."
     
     # Попытка установки
