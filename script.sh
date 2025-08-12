@@ -38,6 +38,61 @@ LINE_B="+"
 LINE_L="+"
 LINE_R="+"
 
+# Функция восстановления состояния системы
+restore_system_state() {
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Восстановление состояния системы..."
+    
+    # Завершаем зависшие процессы apt/dpkg
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение зависших процессов..."
+    pkill -f "apt" 2>/dev/null || true
+    pkill -f "dpkg" 2>/dev/null || true
+    pkill -f "apt-get" 2>/dev/null || true
+    
+    # Удаляем блокирующие файлы
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Удаление блокирующих файлов..."
+    rm -f /var/lib/apt/lists/lock 2>/dev/null || true
+    rm -f /var/cache/apt/archives/lock 2>/dev/null || true
+    rm -f /var/lib/dpkg/lock* 2>/dev/null || true
+    rm -f /var/lib/dpkg/lock-frontend 2>/dev/null || true
+    
+    # Восстанавливаем состояние dpkg
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Восстановление состояния dpkg..."
+    dpkg --configure -a 2>/dev/null || true
+    
+    # Очищаем кэш apt
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Очистка кэша apt..."
+    apt clean 2>/dev/null || true
+    apt autoclean 2>/dev/null || true
+    
+    # Обновляем список пакетов
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление списка пакетов..."
+    apt update 2>/dev/null || true
+    
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Состояние системы восстановлено"
+}
+
+# Функция установки пакетов по частям
+install_packages_in_parts() {
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов по частям..."
+    
+    # Часть 1: Основные утилиты
+    safe_install "curl wget git nano htop" "Часть 1/5: Основные утилиты"
+    
+    # Часть 2: Сетевые утилиты
+    safe_install "fail2ban iptables-persistent netfilter-persistent nftables" "Часть 2/5: Сетевые утилиты"
+    
+    # Часть 3: Python и связанные пакеты
+    safe_install "software-properties-common apt-transport-https python3 python3-pip python3-venv" "Часть 3/5: Python и связанные пакеты"
+    
+    # Часть 4: Дополнительные утилиты
+    safe_install "gnupg2 ca-certificates adduser libfontconfig1 unzip ncdu" "Часть 4/5: Дополнительные утилиты"
+    
+    # Часть 5: PHP зависимости (для Composer)
+    safe_install "php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm" "Часть 5/5: PHP зависимости"
+    
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Все базовые пакеты установлены успешно"
+}
+
 # Функция проверки зависимостей
 check_dependencies() {
     local deps=("curl" "wget" "unzip" "openssl" "systemctl" "apt")
@@ -121,6 +176,32 @@ safe_remove() {
     fi
 }
 
+# Функция безопасной установки пакетов
+safe_install() {
+    local packages="$1"
+    local description="$2"
+    
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} $description..."
+    
+    # Попытка установки
+    if apt install -y $packages 2>/dev/null; then
+        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} $description завершена успешно"
+        return 0
+    else
+        echo -e "${LIGHT_YELLOW}⚠️ Ошибка установки $description, восстанавливаем состояние...${NC}"
+        restore_system_state
+        
+        # Повторная попытка
+        if apt install -y $packages; then
+            echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} $description завершена успешно после восстановления"
+            return 0
+        else
+            echo -e "${LIGHT_RED}${CROSS_MARK}${NC} Критическая ошибка установки $description"
+            return 1
+        fi
+    fi
+}
+
 # Функция проверки ошибок
 check_error() {
     if [ $? -ne 0 ]; then
@@ -158,9 +239,6 @@ show_progress() {
     fi
 }
 
-# Проверка зависимостей
-check_dependencies
-
 # Проверка root
 if [ "$(id -u)" != "0" ]; then
     echo -e "${LIGHT_RED}${CROSS_MARK} Этот скрипт должен быть запущен от имени root${NC}" 1>&2
@@ -173,7 +251,12 @@ echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - �
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
+# 0. Восстановление состояния системы (новый шаг)
+print_header "🔧 ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ СИСТЕМЫ"
+restore_system_state
 
+# Проверка зависимостей
+check_dependencies
 
 # 1. Очистка системы
 print_header "🧹 ОЧИСТКА СИСТЕМЫ"
@@ -191,23 +274,12 @@ timedatectl set-timezone Europe/Minsk
 # 2. Обновление системы и установка базовых пакетов
 print_header "📦 УСТАНОВКА БАЗОВЫХ ПАКЕТОВ"
 
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление списка пакетов..."
-apt update > /dev/null 2>&1
-show_progress 1 4
-
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Обновление системы..."
 apt upgrade -y > /dev/null 2>&1
-show_progress 2 4
 
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка базовых пакетов..."
-apt install -y fail2ban iptables-persistent netfilter-persistent nftables curl wget \
-               software-properties-common apt-transport-https python3 \
-               python3-pip python3-venv git gnupg2 ca-certificates \
-               adduser libfontconfig1 unzip htop ncdu > /dev/null 2>&1
-show_progress 3 4
+# Установка пакетов по частям
+install_packages_in_parts
 
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Завершение установки..."
-show_progress 4 4
 check_error "Установка базовых пакетов"
 
 # 3. Установка Composer (требуется для Hestia CP)
@@ -217,9 +289,6 @@ print_header "📦 УСТАНОВКА COMPOSER"
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer
     chmod +x /usr/local/bin/composer
-    
-    # Устанавливаем зависимости PHP
-    apt install -y php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm
     
     echo -e "${LIGHT_CYAN}${ARROW}${NC} Настройка Composer..."
     composer --version
