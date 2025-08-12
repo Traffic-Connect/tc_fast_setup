@@ -267,6 +267,8 @@ install_monitoring_stack() {
     source "$(dirname "$0")/../modules/pushgateway.sh"
     source "$(dirname "$0")/../modules/loki.sh"
     source "$(dirname "$0")/../modules/fail2ban_exporter.sh"
+    source "$(dirname "$0")/../modules/fail2ban.sh"
+    source "$(dirname "$0")/../modules/firewall.sh"
     
     # Устанавливаем компоненты
     install_grafana
@@ -274,7 +276,9 @@ install_monitoring_stack() {
     install_node_exporter
     install_pushgateway
     install_loki
-    install_fail2ban_exporter
+    setup_fail2ban_exporter
+    setup_fail2ban
+    setup_firewall
     
     # Настраиваем Grafana
     configure_grafana

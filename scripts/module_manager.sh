@@ -111,6 +111,7 @@ install_individual_modules() {
     echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}5.${NC} ${LIGHT_YELLOW}Loki${NC}${LIGHT_PURPLE}${LINE_V:0:35}${LINE_V}${NC}"
     echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}6.${NC} ${LIGHT_YELLOW}Fail2Ban${NC}${LIGHT_PURPLE}${LINE_V:0:30}${LINE_V}${NC}"
     echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}7.${NC} ${LIGHT_YELLOW}Firewall${NC}${LIGHT_PURPLE}${LINE_V:0:30}${LINE_V}${NC}"
+    echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}8.${NC} ${LIGHT_YELLOW}Fail2Ban Exporter${NC}${LIGHT_PURPLE}${LINE_V:0:20}${LINE_V}${NC}"
     echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
     
     echo -e "\n${LIGHT_CYAN}${ARROW}${NC} Выберите модули для установки (через запятую, например: 1,3,5):"
@@ -156,12 +157,17 @@ install_individual_modules() {
             6)
                 log_message "INFO" "Установка Fail2Ban..."
                 source "$(dirname "$0")/../modules/fail2ban.sh"
-                install_fail2ban
+                setup_fail2ban
                 ;;
             7)
                 log_message "INFO" "Установка Firewall..."
                 source "$(dirname "$0")/../modules/firewall.sh"
-                install_firewall
+                setup_firewall
+                ;;
+            8)
+                log_message "INFO" "Установка Fail2Ban Exporter..."
+                source "$(dirname "$0")/../modules/fail2ban_exporter.sh"
+                setup_fail2ban_exporter
                 ;;
             *)
                 log_message "WARNING" "Неизвестный модуль: $module"
