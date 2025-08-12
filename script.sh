@@ -1070,34 +1070,52 @@ check_error "Настройка мониторинга fail2ban"
 
 # 13. Настройка Grafana
 print_header "⚙️ НАСТРОЙКА GRAFANA"
-{
-    while ! systemctl is-active --quiet grafana-server; do
-        sleep 1
-    done
+echo "=== ОТЛАДКА: Начинаем настройку Grafana ==="
 
-    # Генерируем пароль для Grafana
-    GRAFANA_PASSWORD=$(generate_password)
-    grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD"
+# Проверяем, запущен ли Grafana
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Ожидание запуска Grafana..."
+timeout 60 bash -c 'while ! systemctl is-active --quiet grafana-server; do sleep 1; done' || {
+    echo -e "${LIGHT_YELLOW}⚠️ Grafana не запустился в течение 60 секунд, пропускаем настройку${NC}"
+    check_error "Настройка Grafana (пропущена)"
+    exit 0
+}
 
-    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
-      -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy"}' \
-      http://localhost:3000/api/datasources; do
-        sleep 2
-    done
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Grafana запущен, начинаем настройку..."
 
-    until curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
-      -d '{"name":"Loki","type":"loki","url":"http://localhost:3100","access":"proxy"}' \
-      http://localhost:3000/api/datasources; do
-        sleep 2
-    done
+# Генерируем пароль для Grafana
+GRAFANA_PASSWORD=$(generate_password)
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка пароля администратора..."
+grafana-cli admin reset-admin-password "$GRAFANA_PASSWORD" 2>/dev/null || {
+    echo -e "${LIGHT_YELLOW}⚠️ Не удалось установить пароль Grafana${NC}"
+}
 
-    DASHBOARD_IDS="1860 11074 13659 13639"
-    for DASH in $DASHBOARD_IDS; do
-        curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
-          -d "{\"dashboard\":$(curl -s https://grafana.com/api/dashboards/$DASH/revisions/latest/download),\"overwrite\":true}" \
-          http://localhost:3000/api/dashboards/import
-    done
-} > /dev/null 2>&1
+# Проверяем доступность Grafana API
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Проверка доступности Grafana API..."
+timeout 30 bash -c 'until curl -s http://localhost:3000/api/health; do sleep 2; done' || {
+    echo -e "${LIGHT_YELLOW}⚠️ Grafana API недоступен, пропускаем настройку дашбордов${NC}"
+    check_error "Настройка Grafana (базовая)"
+    exit 0
+}
+
+# Добавляем источники данных с таймаутом
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Добавление источника данных Prometheus..."
+timeout 30 curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
+  -d '{"name":"Prometheus","type":"prometheus","url":"http://localhost:9090","access":"proxy"}' \
+  http://localhost:3000/api/datasources 2>/dev/null || {
+    echo -e "${LIGHT_YELLOW}⚠️ Не удалось добавить Prometheus как источник данных${NC}"
+}
+
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Добавление источника данных Loki..."
+timeout 30 curl -u admin:"$GRAFANA_PASSWORD" -X POST -H "Content-Type: application/json" \
+  -d '{"name":"Loki","type":"loki","url":"http://localhost:3100","access":"proxy"}' \
+  http://localhost:3000/api/datasources 2>/dev/null || {
+    echo -e "${LIGHT_YELLOW}⚠️ Не удалось добавить Loki как источник данных${NC}"
+}
+
+# Пропускаем импорт дашбордов для ускорения
+echo -e "${LIGHT_YELLOW}⚠️ Пропускаем импорт дашбордов для ускорения${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Дашборды можно импортировать позже вручную"
+
 check_error "Настройка Grafana"
 
 # 14. Завершение установки
