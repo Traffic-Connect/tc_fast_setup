@@ -960,9 +960,7 @@ echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ �
 echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
 
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📊 Grafana:${NC}       ${LIGHT_YELLOW}TrafficGrafana${NC}     ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$GRAFANA_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:4}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📈 Prometheus:${NC}    ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📝 Loki:${NC}          ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📤 Pushgateway:${NC}   ${LIGHT_YELLOW}без аутентификации${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+
 echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🗄️  phpMyAdmin:${NC}    ${LIGHT_YELLOW}TrafficPhpMyAdmin${NC}  ${LIGHT_GREEN}/${NC} ${LIGHT_RED}$PHPMYADMIN_PASSWORD${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
 echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 

@@ -127,9 +127,9 @@ chmod +x firewall_fixed.sh
 |--------|-----|-------|--------|
 
 | Grafana | http://IP:3000 | TrafficGrafana | JRPhqZbDgAZAoFPh |
-| Prometheus | http://IP:9090 | без аутентификации |
-| Loki | http://IP:3100 | без аутентификации |
-| Pushgateway | http://IP:9091 | без аутентификации |
+| Prometheus | http://IP:9090 | - |
+| Loki | http://IP:3100 | - |
+| Pushgateway | http://IP:9091 | - |
 
 ## 📊 Мониторинг
 
