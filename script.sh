@@ -755,14 +755,28 @@ check_error "Установка Prometheus"
 
 # 9. Установка Node Exporter
 print_header "🖥️ УСТАНОВКА NODE EXPORTER"
-{
-    wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz
-    tar xvf /tmp/node_exporter.tar.gz -C /tmp/
-    mv /tmp/node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
-    useradd --no-create-home --shell /bin/false node_exporter
-    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+echo "=== ОТЛАДКА: Начинаем установку Node Exporter ==="
 
-    cat > /etc/systemd/system/node_exporter.service <<EOF
+# Проверяем доступность GitHub
+if ! curl -s --max-time 10 --connect-timeout 5 https://github.com > /dev/null 2>&1; then
+    echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к GitHub, пропускаем установку Node Exporter${NC}"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Node Exporter можно установить позже вручную"
+    check_error "Установка Node Exporter (пропущена)"
+else
+    {
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Node Exporter..."
+        if ! timeout 60 wget --timeout=30 --tries=3 https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -O /tmp/node_exporter.tar.gz; then
+            echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Node Exporter, пропускаем установку${NC}"
+            exit 0
+        fi
+        
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Распаковка Node Exporter..."
+        tar xvf /tmp/node_exporter.tar.gz -C /tmp/
+        mv /tmp/node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
+        useradd --no-create-home --shell /bin/false node_exporter 2>/dev/null || true
+        chown node_exporter:node_exporter /usr/local/bin/node_exporter
+
+        cat > /etc/systemd/system/node_exporter.service <<EOF
 [Unit]
 Description=Node Exporter
 After=network.target
@@ -776,14 +790,16 @@ ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:9100
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable node_exporter
-    systemctl start node_exporter
-} > /dev/null 2>&1
-check_error "Установка Node Exporter"
+        systemctl daemon-reload
+        systemctl enable node_exporter
+        systemctl start node_exporter
+    } > /dev/null 2>&1
+    check_error "Установка Node Exporter"
+fi
 
 # 10. Установка Pushgateway
 print_header "📤 УСТАНОВКА PUSHGATEWAY"
+echo "=== ОТЛАДКА: Начинаем установку Pushgateway ==="
 {
     wget https://github.com/prometheus/pushgateway/releases/download/v1.6.1/pushgateway-1.6.1.linux-amd64.tar.gz -O /tmp/pushgateway.tar.gz
     tar xvf /tmp/pushgateway.tar.gz -C /tmp/
@@ -823,6 +839,7 @@ check_error "Установка Pushgateway"
 
 # 11. Установка Loki и Promtail
 print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
+echo "=== ОТЛАДКА: Начинаем установку Loki и Promtail ==="
 {
     LOKI_VERSION="2.9.1"
     
