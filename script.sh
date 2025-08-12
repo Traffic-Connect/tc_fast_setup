@@ -363,8 +363,6 @@ create_composer_stub
 echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer заглушка создана (можно установить позже вручную)"
 
 # 4. Firewall configuration (improved version)
-
-# 5. Firewall configuration (improved version)
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 echo "=== ОТЛАДКА: Начинаем настройку файрвола ==="
 
@@ -424,7 +422,7 @@ EOF
     echo -e "${GREEN}${CHECK_MARK}${NC} Базовая настройка файрвола завершена"
 fi
 
-# 6. Настройка fail2ban
+# 5. Настройка fail2ban
 print_header "🛡️ НАСТРОЙКА FAIL2BAN"
 cat > /etc/fail2ban/jail.local <<EOL
 [DEFAULT]
@@ -475,7 +473,7 @@ EOL
 systemctl enable --now fail2ban
 check_error "Настройка fail2ban"
 
-# 7. Установка Grafana
+# 6. Установка Grafana
 print_header "📊 УСТАНОВКА GRAFANA"
 echo "=== ОТЛАДКА: Начинаем установку Grafana ==="
 {
@@ -514,7 +512,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Grafana"
 
-# 8. Установка Prometheus
+# 7. Установка Prometheus
 print_header "📈 УСТАНОВКА PROMETHEUS"
 echo "=== ОТЛАДКА: Начинаем установку Prometheus ==="
 {
@@ -592,7 +590,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Prometheus"
 
-# 9. Установка Node Exporter
+# 8. Установка Node Exporter
 print_header "🖥️ УСТАНОВКА NODE EXPORTER"
 echo "=== ОТЛАДКА: Начинаем установку Node Exporter ==="
 
@@ -636,7 +634,7 @@ EOF
     check_error "Установка Node Exporter"
 fi
 
-# 10. Установка Pushgateway
+# 9. Установка Pushgateway
 print_header "📤 УСТАНОВКА PUSHGATEWAY"
 echo "=== ОТЛАДКА: Начинаем установку Pushgateway ==="
 
@@ -691,7 +689,7 @@ EOF
     check_error "Установка Pushgateway"
 fi
 
-# 11. Установка Loki и Promtail
+# 10. Установка Loki и Promtail
 print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
 echo "=== ОТЛАДКА: Начинаем установку Loki и Promtail ==="
 
@@ -858,7 +856,7 @@ EOF
     check_error "Установка Loki и Promtail"
 fi
 
-# 12. Настройка экспортера для fail2ban
+# 11. Настройка экспортера для fail2ban
 print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
 {
     apt-get install -y python3-prometheus-client
@@ -907,7 +905,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Настройка мониторинга fail2ban"
 
-# 13. Настройка Grafana
+# 12. Настройка Grafana
 print_header "⚙️ НАСТРОЙКА GRAFANA"
 echo "=== ОТЛАДКА: Начинаем настройку Grafana ==="
 
@@ -957,7 +955,7 @@ echo -e "${LIGHT_CYAN}${ARROW}${NC} Дашборды можно импортир
 
 check_error "Настройка Grafana"
 
-# 14. Завершение установки
+# 13. Завершение установки
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения
