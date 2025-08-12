@@ -52,10 +52,31 @@ chmod +x diagnostic.sh
 ./diagnostic.sh
 ```
 
+## 🌐 Установка Hestia CP (отдельно)
+
+Если вам нужна панель управления сервером Hestia CP:
+
+```bash
+# Скачиваем скрипт установки Hestia CP
+wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/install_hestia.sh
+
+# Делаем исполняемым
+chmod +x install_hestia.sh
+
+# Запускаем установку
+sudo bash install_hestia.sh
+```
+
+**После установки Hestia CP:**
+- URL: `https://IP:8083`
+- Логин: `admin`
+- Пароль: генерируется автоматически и показывается в конце установки
+
 ## 📁 Структура проекта
 
 ### Основные файлы
-- **`script.sh`** - главный скрипт установки (1256 строк)
+- **`script.sh`** - главный скрипт установки системы мониторинга
+- **`install_hestia.sh`** - отдельный скрипт установки Hestia CP
 - **`diagnostic.sh`** - универсальная диагностика системы
 - **`firewall_fixed.sh`** - исправленная настройка файрвола
 - **`fix_auth.sh`** - исправление проблем с аутентификацией
