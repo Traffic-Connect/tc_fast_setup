@@ -389,13 +389,60 @@ check_error "Установка Hestia CP"
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 echo "=== ОТЛАДКА: Начинаем настройку файрвола ==="
 
-# Запускаем отдельный скрипт для настройки файрвола
-if [ -f "./firewall_fixed.sh" ]; then
+# Загружаем и запускаем скрипт настройки файрвола
+echo -e "${CYAN}${ARROW}${NC} Загрузка firewall_fixed.sh..."
+if wget -q https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/firewall_fixed.sh -O /tmp/firewall_fixed.sh; then
+    chmod +x /tmp/firewall_fixed.sh
     echo -e "${CYAN}${ARROW}${NC} Запуск firewall_fixed.sh..."
-    bash ./firewall_fixed.sh
+    bash /tmp/firewall_fixed.sh
+    rm -f /tmp/firewall_fixed.sh
 else
-    echo -e "${YELLOW}⚠️ firewall_fixed.sh не найден, пропускаем настройку файрвола${NC}"
-    echo -e "${CYAN}${ARROW}${NC} Скачайте: wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/firewall_fixed.sh"
+    echo -e "${YELLOW}⚠️ Не удалось загрузить firewall_fixed.sh, настраиваем базовый файрвол${NC}"
+    
+    # Базовая настройка файрвола
+    echo -e "${CYAN}${ARROW}${NC} Базовая настройка файрвола..."
+    
+    # Определяем тип файрвола
+    if command -v nft >/dev/null 2>&1; then
+        echo -e "${BLUE}Using nftables (modern firewall)${NC}"
+        # Простая настройка nftables
+        cat > /etc/nftables.conf <<'EOF'
+#!/usr/sbin/nft -f
+flush ruleset
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif lo accept
+        ct state established,related accept
+        tcp dport { 22, 80, 443, 8083, 3000, 9090, 9100, 3100, 9080, 9191, 9091 } accept
+        udp dport 53 accept
+        tcp dport 53 accept
+    }
+    chain forward { type filter hook forward priority 0; policy drop; }
+    chain output { type filter hook output priority 0; policy accept; }
+}
+EOF
+        nft -f /etc/nftables.conf
+        systemctl enable nftables
+        systemctl start nftables
+    else
+        echo -e "${BLUE}Using iptables${NC}"
+        # Простая настройка iptables
+        iptables -F
+        iptables -P INPUT DROP
+        iptables -P FORWARD DROP
+        iptables -P OUTPUT ACCEPT
+        iptables -A INPUT -i lo -j ACCEPT
+        iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        for port in 22 80 443 8083 3000 9090 9100 3100 9080 9191 9091; do
+            iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
+        done
+        iptables -A INPUT -p udp --dport 53 -j ACCEPT
+        iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+        netfilter-persistent save 2>/dev/null || true
+    fi
+    
+    echo -e "${GREEN}${CHECK_MARK}${NC} Базовая настройка файрвола завершена"
 fi
 
 # 6. Настройка fail2ban
@@ -1006,3 +1053,24 @@ echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}bash hst-install.sh --lang
 echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
 echo -e "\n${LIGHT_CYAN}${ARROW}${NC} После установки Hestia CP используйте: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"
+
+# Загружаем диагностический скрипт
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДИАГНОСТИКА СИСТЕМЫ${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка диагностического скрипта..."
+if wget -q https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/diagnostic.sh -O /usr/local/bin/diagnostic.sh; then
+    chmod +x /usr/local/bin/diagnostic.sh
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Диагностический скрипт загружен"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Для диагностики запустите: ${LIGHT_YELLOW}diagnostic.sh${NC}"
+else
+    echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить диагностический скрипт${NC}"
+fi
+
+# Загружаем скрипт исправления аутентификации
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка скрипта исправления аутентификации..."
+if wget -q https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/fix_auth.sh -O /usr/local/bin/fix_auth.sh; then
+    chmod +x /usr/local/bin/fix_auth.sh
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Скрипт исправления аутентификации загружен"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Для исправления аутентификации: ${LIGHT_YELLOW}fix_auth.sh${NC}"
+else
+    echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить скрипт исправления аутентификации${NC}"
+fi
