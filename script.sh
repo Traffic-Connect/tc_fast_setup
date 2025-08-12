@@ -422,6 +422,20 @@ EOF
     echo -e "${GREEN}${CHECK_MARK}${NC} Базовая настройка файрвола завершена"
 fi
 
+# Принудительный перезапуск сервисов после настройки файрвола
+echo -e "${CYAN}${ARROW}${NC} Перезапуск сервисов для применения настроек файрвола..."
+local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "node_exporter")
+for service in "${services[@]}"; do
+    if systemctl is-active --quiet "$service" 2>/dev/null; then
+        systemctl restart "$service" 2>/dev/null || true
+        echo -e "  ${GREEN}${CHECK_MARK}${NC} $service перезапущен"
+    fi
+done
+
+# Ждем запуска сервисов
+echo -e "${CYAN}${ARROW}${NC} Ожидание запуска сервисов..."
+sleep 10
+
 # 5. Настройка fail2ban
 print_header "🛡️ НАСТРОЙКА FAIL2BAN"
 cat > /etc/fail2ban/jail.local <<EOL
