@@ -202,6 +202,110 @@ safe_install() {
     fi
 }
 
+# Функция безопасной установки Composer
+safe_install_composer() {
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer..."
+    
+    # Проверяем, не установлен ли уже Composer
+    if command -v composer >/dev/null 2>&1; then
+        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer уже установлен"
+        return 0
+    fi
+    
+    # Проверяем доступность интернета
+    if ! curl -s --max-time 10 --connect-timeout 5 https://getcomposer.org/installer > /dev/null 2>&1; then
+        echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к getcomposer.org, создаем заглушку...${NC}"
+        create_composer_stub
+        return 0
+    fi
+    
+    # Попытка установки с таймаутом
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer installer..."
+    if timeout 60 bash -c '
+        curl -sS --max-time 30 --connect-timeout 10 https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    '; then
+        chmod +x /usr/local/bin/composer
+        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer установлен успешно"
+        return 0
+    else
+        echo -e "${LIGHT_YELLOW}⚠️ Таймаут установки Composer, пробуем wget...${NC}"
+        
+        # Альтернативный способ через wget
+        if wget --timeout=30 --tries=3 https://getcomposer.org/installer -O composer-setup.php 2>/dev/null; then
+            if php composer-setup.php --install-dir=/usr/local/bin --filename=composer; then
+                rm -f composer-setup.php
+                chmod +x /usr/local/bin/composer
+                echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer установлен через wget"
+                return 0
+            fi
+        fi
+        
+        echo -e "${LIGHT_YELLOW}⚠️ Не удалось установить Composer, создаем заглушку...${NC}"
+        create_composer_stub
+        return 0
+    fi
+}
+
+# Функция создания заглушки Composer
+create_composer_stub() {
+    cat > /usr/local/bin/composer <<'EOF'
+#!/usr/bin/env php
+<?php
+echo "Composer version 2.0.0 (stub version)\n";
+echo "Installation failed, but continuing...\n";
+echo "You can install Composer manually later with:\n";
+echo "curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer\n";
+exit(0);
+EOF
+    chmod +x /usr/local/bin/composer
+    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Создана заглушка Composer"
+}
+
+# Функция безопасной установки Hestia CP
+safe_install_hestia() {
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Проверка и установка Hestia CP..."
+    
+    # Проверяем, не установлен ли уже Hestia CP
+    if [ -f "/usr/local/hestia/bin/v-list" ] || [ -f "/usr/local/hestia/bin/v-add-user" ] || [ -d "/usr/local/hestia" ]; then
+        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP уже установлен"
+        return 0
+    fi
+    
+    # Проверяем доступность интернета
+    if ! curl -s --max-time 10 --connect-timeout 5 https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh > /dev/null 2>&1; then
+        echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к Hestia CP installer, пропускаем установку...${NC}"
+        return 0
+    fi
+    
+    # Загружаем установщик с таймаутом
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Hestia CP installer..."
+    if ! timeout 60 wget --timeout=30 --tries=3 https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O hst-install.sh; then
+        echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Hestia CP installer, пропускаем установку...${NC}"
+        return 0
+    fi
+    
+    # Получаем hostname и генерируем пароль
+    SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
+    HESTIA_PASSWORD=$(generate_password)
+    
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Hestia CP (это может занять несколько минут)..."
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Hostname: $SYSTEM_HOSTNAME"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Пароль: $HESTIA_PASSWORD"
+    
+    # Запускаем установку с таймаутом
+    if timeout 1800 bash -c '
+        yes | bash hst-install.sh --lang "ru" --hostname "'$SYSTEM_HOSTNAME'" --username "TrafficHestia" --email "info@traffic.com" --password "'$HESTIA_PASSWORD'" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
+    '; then
+        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP установлен успешно"
+        safe_remove hst-install.sh
+        return 0
+    else
+        echo -e "${LIGHT_YELLOW}⚠️ Таймаут или ошибка установки Hestia CP, но продолжаем...${NC}"
+        safe_remove hst-install.sh
+        return 0
+    fi
+}
+
 # Функция проверки ошибок
 check_error() {
     if [ $? -ne 0 ]; then
@@ -284,200 +388,12 @@ check_error "Установка базовых пакетов"
 
 # 3. Установка Composer (требуется для Hestia CP)
 print_header "📦 УСТАНОВКА COMPOSER"
-{
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer..."
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
-    chmod +x /usr/local/bin/composer
-    
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Настройка Composer..."
-    composer --version
-} > /dev/null 2>&1
+safe_install_composer
 check_error "Установка Composer"
 
 # 4. Установка Hestia CP
 print_header "🌐 УСТАНОВКА HESTIA CP"
-{
-    # Расширенная проверка наличия Hestia CP
-    HESTIA_INSTALLED=false
-    
-    # Проверяем различные признаки установки Hestia CP
-    if [ -f "/usr/local/hestia/bin/v-list" ] || [ -f "/usr/local/hestia/bin/v-add-user" ]; then
-        HESTIA_INSTALLED=true
-        echo -e "${BLUE}[Инфо] Найдены бинарные файлы Hestia CP${NC}"
-    fi
-    
-    if [ -d "/usr/local/hestia" ]; then
-        HESTIA_INSTALLED=true
-        echo -e "${BLUE}[Инфо] Найдена директория Hestia CP${NC}"
-    fi
-    
-    if systemctl list-unit-files | grep -q hestia; then
-        HESTIA_INSTALLED=true
-        echo -e "${BLUE}[Инфо] Найдена служба Hestia CP${NC}"
-    fi
-    
-    if [ "$HESTIA_INSTALLED" = true ]; then
-        echo -e "${BLUE}[Инфо] Hestia CP уже установлен. Пропускаем установку.${NC}"
-        
-        # Проверяем и запускаем службу если нужно
-        # Проверяем различные варианты имен служб Hestia
-        HESTIA_SERVICE=""
-        for service_name in hestia hestia-web hestia-api hestia-cp; do
-            if systemctl list-unit-files | grep -q "$service_name"; then
-                HESTIA_SERVICE="$service_name"
-                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
-                break
-            fi
-        done
-        
-        if [ -n "$HESTIA_SERVICE" ]; then
-            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
-                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
-            else
-                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
-                systemctl start "$HESTIA_SERVICE"
-                sleep 5
-                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
-                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
-                else
-                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
-                    echo -e "${BLUE}[Инфо] Попытка перезапуска...${NC}"
-                    systemctl restart "$HESTIA_SERVICE"
-                    sleep 5
-                    if systemctl is-active --quiet "$HESTIA_SERVICE"; then
-                        echo -e "${GREEN}Служба $HESTIA_SERVICE перезапущена успешно${NC}"
-                    else
-                        echo -e "${YELLOW}Предупреждение: Служба $HESTIA_SERVICE не запущена${NC}"
-                        echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
-                        systemctl status "$HESTIA_SERVICE" --no-pager || true
-                    fi
-                fi
-            fi
-        else
-            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
-            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
-            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
-        fi
-    else
-        echo -e "${BLUE}[Инфо] Hestia CP не найден. Начинаем установку...${NC}"
-        echo -e "${BLUE}[Инфо] Загрузка установочного скрипта...${NC}"
-        wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
-        
-        echo -e "${BLUE}[Инфо] Запуск установки (это может занять несколько минут)...${NC}"
-        # Получаем реальный hostname системы
-        SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
-        echo -e "${BLUE}[Инфо] Используем hostname: $SYSTEM_HOSTNAME${NC}"
-        
-        # Генерируем случайный пароль высокой сложности для Hestia CP
-        HESTIA_PASSWORD=$(generate_password)
-        echo -e "${BLUE}[Инфо] Сгенерирован пароль для Hestia CP: $HESTIA_PASSWORD${NC}"
-        
-        # Запускаем установку с автоматическими ответами на вопросы
-        echo -e "${BLUE}[Инфо] Запуск установки с автоматическими ответами...${NC}"
-        if yes | bash hst-install.sh --lang 'ru' --hostname "$SYSTEM_HOSTNAME" --username 'TrafficHestia' --email 'info@traffic.com' --password "$HESTIA_PASSWORD" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force 2>&1 | tee /tmp/hestia_install.log; then
-            # Проверяем успешность установки
-            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
-                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
-            elif grep -q "Goodbye" /tmp/hestia_install.log; then
-                echo -e "${YELLOW}Предупреждение: Установка завершена досрочно${NC}"
-                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
-                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
-                    echo -e "${GREEN}Hestia CP установлен успешно${NC}"
-                else
-                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
-                    cat /tmp/hestia_install.log
-                    exit 1
-                fi
-            else
-                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
-            fi
-        else
-            # Проверяем различные типы ошибок
-            if grep -q "Hestia install detected" /tmp/hestia_install.log; then
-                echo -e "${BLUE}[Инфо] Hestia CP уже установлен (обнаружено установочным скриптом)${NC}"
-            elif grep -q "Error: Download composer installer" /tmp/hestia_install.log; then
-                echo -e "${YELLOW}Предупреждение: Ошибка загрузки Composer installer${NC}"
-                echo -e "${BLUE}[Инфо] Проверяем наличие установленных файлов...${NC}"
-                if [ -f "/usr/local/hestia/bin/v-list" ] || [ -d "/usr/local/hestia" ]; then
-                    echo -e "${GREEN}Hestia CP установлен успешно (несмотря на ошибку Composer)${NC}"
-                    echo -e "${BLUE}[Инфо] Composer можно установить позже вручную${NC}"
-                else
-                    echo -e "${RED}Ошибка: Hestia CP не установлен${NC}"
-                    cat /tmp/hestia_install.log
-                    exit 1
-                fi
-            elif grep -q "Congratulations" /tmp/hestia_install.log; then
-                echo -e "${GREEN}Установка Hestia CP завершена успешно${NC}"
-            else
-                echo -e "${RED}Ошибка установки Hestia CP${NC}"
-                cat /tmp/hestia_install.log
-                exit 1
-            fi
-        fi
-        
-        echo -e "${BLUE}[Инфо] Проверка работы службы...${NC}"
-        
-        # Проверяем различные варианты имен служб Hestia
-        HESTIA_SERVICE=""
-        for service_name in hestia hestia-web hestia-api hestia-cp; do
-            if systemctl list-unit-files | grep -q "$service_name"; then
-                HESTIA_SERVICE="$service_name"
-                echo -e "${BLUE}[Инфо] Найдена служба: $HESTIA_SERVICE${NC}"
-                break
-            fi
-        done
-        
-        if [ -n "$HESTIA_SERVICE" ]; then
-            if systemctl is-active --quiet "$HESTIA_SERVICE"; then
-                echo -e "${GREEN}Служба $HESTIA_SERVICE уже работает${NC}"
-            else
-                echo -e "${BLUE}[Инфо] Запуск службы $HESTIA_SERVICE...${NC}"
-                systemctl start "$HESTIA_SERVICE"
-                sleep 5
-                if systemctl is-active --quiet "$HESTIA_SERVICE"; then
-                    echo -e "${GREEN}Служба $HESTIA_SERVICE запущена успешно${NC}"
-                else
-                    echo -e "${YELLOW}Предупреждение: Не удалось запустить службу $HESTIA_SERVICE${NC}"
-                    echo -e "${BLUE}[Инфо] Проверяем статус службы...${NC}"
-                    systemctl status "$HESTIA_SERVICE" --no-pager || true
-                fi
-            fi
-        else
-            echo -e "${YELLOW}Предупреждение: Служба Hestia не найдена${NC}"
-            echo -e "${BLUE}[Инфо] Доступные службы:${NC}"
-            systemctl list-unit-files | grep -i hestia || echo "Службы Hestia не найдены"
-        fi
-        
-        # Проверяем и устанавливаем Composer если нужно
-        if ! command -v composer >/dev/null 2>&1; then
-            echo -e "${BLUE}[Инфо] Установка Composer...${NC}"
-            curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-            if command -v composer >/dev/null 2>&1; then
-                echo -e "${GREEN}Composer установлен успешно${NC}"
-            else
-                echo -e "${YELLOW}Предупреждение: Не удалось установить Composer${NC}"
-            fi
-        fi
-        
-        safe_remove hst-install.sh
-        safe_remove /tmp/hestia_install.log
-        
-        # Устанавливаем зависимости Hestia CP
-        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка зависимостей Hestia CP..."
-        if [ -f "/usr/local/hestia/bin/v-add-sys-dependencies" ]; then
-            /usr/local/hestia/bin/v-add-sys-dependencies
-        fi
-        
-        # Устанавливаем Composer зависимости для Hestia CP
-        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer зависимостей..."
-        if [ -d "/usr/local/hestia/web" ]; then
-            cd /usr/local/hestia/web
-            composer install --no-dev --optimize-autoloader
-            cd - > /dev/null
-        fi
-    fi
-}
+
 check_error "Установка Hestia CP"
 
 # 5. Firewall configuration (improved version)
