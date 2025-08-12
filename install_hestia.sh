@@ -86,6 +86,54 @@ echo -e "${CYAN}${ARROW}${NC} ОС: $(lsb_release -d | cut -f2 2>/dev/null || ec
 echo -e "${CYAN}${ARROW}${NC} Ядро: $(uname -r)"
 echo -e "${CYAN}${ARROW}${NC} IP адрес: ${SERVER_IP}"
 
+# Показываем данные для входа ДО установки
+print_header "🔐 ДАННЫЕ ДЛЯ ВХОДА"
+
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУП К HESTIA CP${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙС${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}URL:${NC}         ${LIGHT_YELLOW}https://${SERVER_IP}:8083${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}Альтернативный:${NC} ${LIGHT_YELLOW}https://$(hostname):8083${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДАННЫЕ ДЛЯ ВХОДА${NC} ${LIGHT_BLUE}${STAR}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ ДАННЫЕ${NC}${LIGHT_BLUE}${LINE_V:0:40}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Логин:${NC}       ${LIGHT_YELLOW}${HESTIA_USERNAME}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Пароль:${NC}      ${LIGHT_RED}${HESTIA_PASSWORD}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Email:${NC}       ${LIGHT_YELLOW}${HESTIA_EMAIL}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_GREEN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ЧТО БУДЕТ УСТАНОВЛЕНО${NC} ${LIGHT_GREEN}${STAR}${NC}"
+echo -e "${LIGHT_GREEN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🚀 КОМПОНЕНТЫ${NC}${LIGHT_GREEN}${LINE_V:0:45}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ NGINX Web/Proxy Server${NC}${LIGHT_GREEN}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ PHP-FPM 8.3${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ MariaDB 11.4${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Vsftpd FTP Server${NC}${LIGHT_GREEN}${LINE_V:0:30}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Firewall (iptables) + Fail2Ban${NC}${LIGHT_GREEN}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ phpMyAdmin v5.2.2${NC}${LIGHT_GREEN}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ File Manager${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Rclone & Restic${NC}${LIGHT_GREEN}${LINE_V:0:30}${LINE_V}${NC}"
+echo -e "${LIGHT_GREEN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_YELLOW}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ВАЖНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_YELLOW}${STAR}${NC}"
+echo -e "${LIGHT_YELLOW}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_YELLOW}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}⚠️ ВНИМАНИЕ${NC}${LIGHT_YELLOW}${LINE_V:0:45}${LINE_V}${NC}"
+echo -e "${LIGHT_YELLOW}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_YELLOW}${LINE_V}${NC} ${CYAN}•${NC} Установка займет 5-10 минут${LIGHT_YELLOW}${LINE_V:0:25}${LINE_V}${NC}"
+echo -e "${LIGHT_YELLOW}${LINE_V}${NC} ${CYAN}•${NC} После установки сервер перезагрузится${LIGHT_YELLOW}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_YELLOW}${LINE_V}${NC} ${CYAN}•${NC} Сохраните пароль: ${LIGHT_RED}${HESTIA_PASSWORD}${NC}${LIGHT_YELLOW}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_YELLOW}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_RED}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СОХРАНИТЕ ПАРОЛЬ: ${LIGHT_RED}${HESTIA_PASSWORD}${NC} ${LIGHT_RED}${STAR}${NC}"
+
+echo -e "\n${LIGHT_CYAN}${ARROW}${NC} Нажмите любую клавишу для начала установки..."
+read -n 1 -s
+
 print_header "📦 УСТАНОВКА HESTIA CP"
 
 echo -e "${CYAN}${ARROW}${NC} Загрузка установщика Hestia CP..."
@@ -122,36 +170,13 @@ rm -f /tmp/hst-install.sh
 
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
-echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУП К HESTIA CP${NC} ${LIGHT_PURPLE}${STAR}${NC}"
-echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙС${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}URL:${NC}         ${LIGHT_YELLOW}https://${SERVER_IP}:8083${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}Альтернативный:${NC} ${LIGHT_YELLOW}https://$(hostname):8083${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Hestia CP успешно установлен!${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Для входа используйте: ${LIGHT_YELLOW}https://${SERVER_IP}:8083${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Логин: ${LIGHT_YELLOW}${HESTIA_USERNAME}${NC} | Пароль: ${LIGHT_RED}${HESTIA_PASSWORD}${NC}"
 
-echo -e "\n${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДАННЫЕ ДЛЯ ВХОДА${NC} ${LIGHT_BLUE}${STAR}${NC}"
-echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔐 УЧЕТНЫЕ ДАННЫЕ${NC}${LIGHT_BLUE}${LINE_V:0:40}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Логин:${NC}       ${LIGHT_YELLOW}${HESTIA_USERNAME}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Пароль:${NC}      ${LIGHT_RED}${HESTIA_PASSWORD}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Email:${NC}       ${LIGHT_YELLOW}${HESTIA_EMAIL}${NC}${LIGHT_BLUE}${LINE_V:0:15}${LINE_V}${NC}"
+echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🎉 УСТАНОВКА HESTIA CP ЗАВЕРШЕНА УСПЕШНО! 🎉${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-echo -e "\n${LIGHT_GREEN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ЧТО УСТАНОВЛЕНО${NC} ${LIGHT_GREEN}${STAR}${NC}"
-echo -e "${LIGHT_GREEN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🚀 КОМПОНЕНТЫ${NC}${LIGHT_GREEN}${LINE_V:0:45}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ NGINX Web/Proxy Server${NC}${LIGHT_GREEN}${LINE_V:0:25}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ PHP-FPM 8.3${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ MariaDB 11.4${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Vsftpd FTP Server${NC}${LIGHT_GREEN}${LINE_V:0:30}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Firewall (iptables) + Fail2Ban${NC}${LIGHT_GREEN}${LINE_V:0:15}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ phpMyAdmin v5.2.2${NC}${LIGHT_GREEN}${LINE_V:0:25}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ File Manager${NC}${LIGHT_GREEN}${LINE_V:0:35}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${LINE_V}${NC} ${CYAN}✅ Rclone & Restic${NC}${LIGHT_GREEN}${LINE_V:0:30}${LINE_V}${NC}"
-echo -e "${LIGHT_GREEN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
 echo -e "\n${LIGHT_YELLOW}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СЛЕДУЮЩИЕ ШАГИ${NC} ${LIGHT_YELLOW}${STAR}${NC}"
 echo -e "${LIGHT_YELLOW}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
@@ -172,11 +197,3 @@ echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}Логи:${NC}         ${LIGHT_YELLO
 echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}Веб-сайты:${NC}    ${LIGHT_YELLOW}/home/admin/web/${NC}${LIGHT_CYAN}${LINE_V:0:15}${LINE_V}${NC}"
 echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}База данных:${NC}  ${LIGHT_YELLOW}/var/lib/mysql/${NC}${LIGHT_CYAN}${LINE_V:0:12}${LINE_V}${NC}"
 echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Hestia CP успешно установлен!${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Для входа используйте: ${LIGHT_YELLOW}https://${SERVER_IP}:8083${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Логин: ${LIGHT_YELLOW}${HESTIA_USERNAME}${NC} | Пароль: ${LIGHT_RED}${HESTIA_PASSWORD}${NC}"
-
-echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🎉 УСТАНОВКА HESTIA CP ЗАВЕРШЕНА УСПЕШНО! 🎉${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"

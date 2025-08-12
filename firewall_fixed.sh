@@ -285,7 +285,7 @@ check_ports() {
     echo -e "${CYAN}${ARROW}${NC} Ожидание запуска сервисов..."
     sleep 5
     
-    local ports=(80 443 8083 3000 9090 9100 3100 9080 9091 9191 3306 22)
+    local ports=(80 443 3000 9090 9100 3100 9080 9091 9191 3306 22)
     
     for port in "${ports[@]}"; do
         if netstat -tlnp 2>/dev/null | grep -q ":$port "; then

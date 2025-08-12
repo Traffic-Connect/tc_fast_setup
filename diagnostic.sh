@@ -288,7 +288,6 @@ main() {
     echo -e "${YELLOW}💡 Рекомендации:${NC}"
     echo -e "  ${CYAN}${ARROW}${NC} Если сервисы не работают, проверьте логи: journalctl -u <service_name>"
     echo -e "  ${CYAN}${ARROW}${NC} Если порты закрыты, запустите: ./firewall_fixed.sh"
-    echo -e "  ${CYAN}${ARROW}${NC} Для исправления аутентификации: ./fix_auth.sh"
 }
 
 # Запускаем основную функцию
