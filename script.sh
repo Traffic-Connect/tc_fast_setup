@@ -97,7 +97,7 @@ install_packages_in_parts() {
     # Часть 4: Дополнительные утилиты
     safe_install "gnupg2 ca-certificates adduser libfontconfig1 unzip ncdu" "Часть 4/5: Дополнительные утилиты"
     
-    # Часть 5: PHP зависимости (для Composer)
+    # Часть 5: PHP зависимости
     safe_install "php-cli php-mbstring php-xml php-zip php-curl php-gd php-mysql php-fpm" "Часть 5/5: PHP зависимости"
     
     echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Все базовые пакеты установлены успешно"
@@ -214,64 +214,9 @@ safe_install() {
     fi
 }
 
-# Функция безопасной установки Composer
-safe_install_composer() {
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Composer..."
-    
-    # Проверяем, не установлен ли уже Composer
-    if command -v composer >/dev/null 2>&1; then
-        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer уже установлен"
-        return 0
-    fi
-    
-    # Проверяем доступность интернета
-    if ! curl -s --max-time 10 --connect-timeout 5 https://getcomposer.org/installer > /dev/null 2>&1; then
-        echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к getcomposer.org, создаем заглушку...${NC}"
-        create_composer_stub
-        return 0
-    fi
-    
-    # Попытка установки с таймаутом
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Composer installer..."
-    if timeout 60 bash -c '
-        curl -sS --max-time 30 --connect-timeout 10 https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    '; then
-        chmod +x /usr/local/bin/composer
-        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer установлен успешно"
-        return 0
-    else
-        echo -e "${LIGHT_YELLOW}⚠️ Таймаут установки Composer, пробуем wget...${NC}"
-        
-        # Альтернативный способ через wget
-        if wget --timeout=30 --tries=3 https://getcomposer.org/installer -O composer-setup.php 2>/dev/null; then
-            if php composer-setup.php --install-dir=/usr/local/bin --filename=composer; then
-                rm -f composer-setup.php
-                chmod +x /usr/local/bin/composer
-                echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer установлен через wget"
-                return 0
-            fi
-        fi
-        
-        echo -e "${LIGHT_YELLOW}⚠️ Не удалось установить Composer, создаем заглушку...${NC}"
-        create_composer_stub
-        return 0
-    fi
-}
 
-# Функция создания заглушки Composer
-create_composer_stub() {
-    cat > /usr/local/bin/composer <<'EOF'
-#!/usr/bin/env php
-<?php
-echo "Composer version 2.0.0 (stub version)\n";
-echo "Installation failed, but continuing...\n";
-echo "You can install Composer manually later with:\n";
-echo "curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer\n";
-exit(0);
-EOF
-    chmod +x /usr/local/bin/composer
-    echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Создана заглушка Composer"
-}
+
+
 
 
 
@@ -355,14 +300,7 @@ install_packages_in_parts
 
 check_error "Установка базовых пакетов"
 
-# 3. Установка Composer (опционально, пропускаем для ускорения)
-print_header "📦 УСТАНОВКА COMPOSER"
-echo -e "${LIGHT_YELLOW}⚠️ Пропускаем установку Composer для ускорения процесса${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Создаем заглушку Composer..."
-create_composer_stub
-echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer заглушка создана (можно установить позже вручную)"
-
-# 4. Firewall configuration (improved version)
+# 3. Firewall configuration (improved version)
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 echo "=== ОТЛАДКА: Начинаем настройку файрвола ==="
 
@@ -449,7 +387,7 @@ for service in "${services[@]}"; do
     fi
 done
 
-# 5. Настройка fail2ban
+# 4. Настройка fail2ban
 print_header "🛡️ НАСТРОЙКА FAIL2BAN"
 cat > /etc/fail2ban/jail.local <<EOL
 [DEFAULT]
@@ -500,7 +438,7 @@ EOL
 systemctl enable --now fail2ban
 check_error "Настройка fail2ban"
 
-# 6. Установка Grafana
+# 5. Установка Grafana
 print_header "📊 УСТАНОВКА GRAFANA"
 echo "=== ОТЛАДКА: Начинаем установку Grafana ==="
 {
@@ -539,7 +477,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Grafana"
 
-# 7. Установка Prometheus
+# 6. Установка Prometheus
 print_header "📈 УСТАНОВКА PROMETHEUS"
 echo "=== ОТЛАДКА: Начинаем установку Prometheus ==="
 {
@@ -617,7 +555,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Установка Prometheus"
 
-# 8. Установка Node Exporter
+# 7. Установка Node Exporter
 print_header "🖥️ УСТАНОВКА NODE EXPORTER"
 echo "=== ОТЛАДКА: Начинаем установку Node Exporter ==="
 
@@ -661,7 +599,7 @@ EOF
     check_error "Установка Node Exporter"
 fi
 
-# 9. Установка Pushgateway
+# 8. Установка Pushgateway
 print_header "📤 УСТАНОВКА PUSHGATEWAY"
 echo "=== ОТЛАДКА: Начинаем установку Pushgateway ==="
 
@@ -710,7 +648,7 @@ EOF
     check_error "Установка Pushgateway"
 fi
 
-# 10. Установка Loki и Promtail
+# 9. Установка Loki и Promtail
 print_header "📝 УСТАНОВКА LOKI И PROMTAIL"
 echo "=== ОТЛАДКА: Начинаем установку Loki и Promtail ==="
 
@@ -862,7 +800,7 @@ EOF
     check_error "Установка Loki и Promtail"
 fi
 
-# 11. Настройка экспортера для fail2ban
+# 10. Настройка экспортера для fail2ban
 print_header "📊 НАСТРОЙКА МОНИТОРИНГА FAIL2BAN"
 {
     apt-get install -y python3-prometheus-client
@@ -911,7 +849,7 @@ EOF
 } > /dev/null 2>&1
 check_error "Настройка мониторинга fail2ban"
 
-# 12. Настройка Grafana
+# 11. Настройка Grafana
 print_header "⚙️ НАСТРОЙКА GRAFANA"
 echo "=== ОТЛАДКА: Начинаем настройку Grafana ==="
 
@@ -961,7 +899,7 @@ echo -e "${LIGHT_CYAN}${ARROW}${NC} Дашборды можно импортир
 
 check_error "Настройка Grafana"
 
-# 13. Завершение установки
+# 12. Завершение установки
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
 # Генерируем все пароли для отображения
@@ -1009,14 +947,7 @@ echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Все сервисы уст�
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Рекомендуется перезагрузить сервер после установки"
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Для мониторинга используйте Grafana: ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}"
 
-echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОПОЛНИТЕЛЬНАЯ УСТАНОВКА${NC} ${LIGHT_PURPLE}${STAR}${NC}"
-echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔧 РУЧНАЯ УСТАНОВКА${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📦 Composer:${NC}${LIGHT_PURPLE}${LINE_V:0:45}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}curl -sS https://getcomposer.org/installer | php${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}mv composer.phar /usr/local/bin/composer${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
-echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
 
 
 
