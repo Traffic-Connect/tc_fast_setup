@@ -28,8 +28,47 @@ check_dependencies() {
     done
     
     if [ ${#missing[@]} -gt 0 ]; then
-        echo -e "${RED}[ERROR] Missing dependencies: ${missing[*]}${NC}" >&2
-        exit 1
+        echo -e "${YELLOW}⚠️ Отсутствуют зависимости: ${missing[*]}${NC}"
+        echo -e "${BLUE}Устанавливаем недостающие зависимости...${NC}"
+        
+        # Обновляем список пакетов
+        apt update >/dev/null 2>&1 || true
+        
+        # Устанавливаем недостающие зависимости
+        for dep in "${missing[@]}"; do
+            case "$dep" in
+                "wget")
+                    apt install -y wget >/dev/null 2>&1 || true
+                    ;;
+                "unzip")
+                    apt install -y unzip >/dev/null 2>&1 || true
+                    ;;
+                "jq")
+                    apt install -y jq >/dev/null 2>&1 || true
+                    ;;
+                "curl")
+                    apt install -y curl >/dev/null 2>&1 || true
+                    ;;
+            esac
+        done
+        
+        # Проверяем еще раз после установки
+        local still_missing=()
+        for dep in "${missing[@]}"; do
+            if ! command -v "$dep" >/dev/null 2>&1; then
+                still_missing+=("$dep")
+            fi
+        done
+        
+        if [ ${#still_missing[@]} -gt 0 ]; then
+            echo -e "${RED}[ERROR] Не удалось установить: ${still_missing[*]}${NC}" >&2
+            echo -e "${BLUE}Попробуйте установить вручную: apt install ${still_missing[*]}${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}[OK] Все зависимости установлены успешно${NC}"
+        fi
+    else
+        echo -e "${GREEN}[OK] Все необходимые зависимости найдены${NC}"
     fi
 }
 

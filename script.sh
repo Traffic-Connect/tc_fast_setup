@@ -50,9 +50,55 @@ check_dependencies() {
     done
     
     if [ ${#missing[@]} -gt 0 ]; then
-        echo -e "${LIGHT_RED}${CROSS_MARK} Отсутствуют необходимые зависимости: ${missing[*]}${NC}" 1>&2
-        echo -e "${LIGHT_CYAN}${ARROW}${NC} Установите их вручную или обновите систему" 1>&2
-        exit 1
+        echo -e "${LIGHT_YELLOW}⚠️ Отсутствуют зависимости: ${missing[*]}${NC}"
+        echo -e "${LIGHT_CYAN}${ARROW}${NC} Устанавливаем недостающие зависимости..."
+        
+        # Обновляем список пакетов
+        apt update >/dev/null 2>&1 || true
+        
+        # Устанавливаем недостающие зависимости
+        for dep in "${missing[@]}"; do
+            case "$dep" in
+                "curl")
+                    apt install -y curl >/dev/null 2>&1 || true
+                    ;;
+                "wget")
+                    apt install -y wget >/dev/null 2>&1 || true
+                    ;;
+                "unzip")
+                    apt install -y unzip >/dev/null 2>&1 || true
+                    ;;
+                "openssl")
+                    apt install -y openssl >/dev/null 2>&1 || true
+                    ;;
+                "systemctl")
+                    # systemctl обычно входит в systemd, который должен быть установлен
+                    echo -e "${LIGHT_YELLOW}⚠️ systemctl не найден - проверьте установку systemd${NC}"
+                    ;;
+                "apt")
+                    echo -e "${LIGHT_RED}❌ apt не найден - это критическая ошибка${NC}"
+                    exit 1
+                    ;;
+            esac
+        done
+        
+        # Проверяем еще раз после установки
+        local still_missing=()
+        for dep in "${missing[@]}"; do
+            if ! command -v "$dep" >/dev/null 2>&1; then
+                still_missing+=("$dep")
+            fi
+        done
+        
+        if [ ${#still_missing[@]} -gt 0 ]; then
+            echo -e "${LIGHT_RED}❌ Не удалось установить: ${still_missing[*]}${NC}"
+            echo -e "${LIGHT_CYAN}${ARROW}${NC} Попробуйте установить вручную: apt install ${still_missing[*]}"
+            exit 1
+        else
+            echo -e "${LIGHT_GREEN}✅ Все зависимости установлены успешно${NC}"
+        fi
+    else
+        echo -e "${LIGHT_GREEN}✅ Все необходимые зависимости найдены${NC}"
     fi
 }
 
