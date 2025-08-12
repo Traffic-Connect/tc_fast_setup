@@ -173,14 +173,7 @@ echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🚀 TC FAST SETUP - �
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Система мониторинга и управления сервером${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 
-# Отображение системной информации
-echo -e "\n${LIGHT_CYAN}${STAR}${NC} ${BOLD}${LIGHT_GREEN}СИСТЕМНАЯ ИНФОРМАЦИЯ${NC} ${LIGHT_CYAN}${STAR}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🖥️  Система:${NC}     ${LIGHT_YELLOW}$(lsb_release -d | cut -f2)${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💾 Память:${NC}      ${LIGHT_YELLOW}$(free -h | awk 'NR==2{printf "%.1f GB", $2/1024}')${NC}${LIGHT_CYAN}${LINE_V:0:25}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}💿 Диск:${NC}        ${LIGHT_YELLOW}$(df -h / | awk 'NR==2{print $2}')${NC}${LIGHT_CYAN}${LINE_V:0:28}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${LINE_V}${NC} ${CYAN}🌐 IP адрес:${NC}    ${LIGHT_YELLOW}$(hostname -I | awk '{print $1}')${NC}${LIGHT_CYAN}${LINE_V:0:20}${LINE_V}${NC}"
-echo -e "${LIGHT_CYAN}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
 
 # 1. Очистка системы
 print_header "🧹 ОЧИСТКА СИСТЕМЫ"
