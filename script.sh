@@ -271,39 +271,12 @@ safe_install_hestia() {
         return 0
     fi
     
-    # Проверяем доступность интернета
-    if ! curl -s --max-time 10 --connect-timeout 5 https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh > /dev/null 2>&1; then
-        echo -e "${LIGHT_YELLOW}⚠️ Проблема с доступом к Hestia CP installer, пропускаем установку...${NC}"
-        return 0
-    fi
+    echo -e "${LIGHT_YELLOW}⚠️ Пропускаем установку Hestia CP для ускорения процесса${NC}"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} Hestia CP можно установить позже вручную:"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh"
+    echo -e "${LIGHT_CYAN}${ARROW}${NC} bash hst-install.sh --lang 'ru' --hostname \$(hostname) --username 'admin' --email 'admin@example.com' --password 'password' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force"
     
-    # Загружаем установщик с таймаутом
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Загрузка Hestia CP installer..."
-    if ! timeout 60 wget --timeout=30 --tries=3 https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O hst-install.sh; then
-        echo -e "${LIGHT_YELLOW}⚠️ Не удалось загрузить Hestia CP installer, пропускаем установку...${NC}"
-        return 0
-    fi
-    
-    # Получаем hostname и генерируем пароль
-    SYSTEM_HOSTNAME=$(hostname -f 2>/dev/null || hostname)
-    HESTIA_PASSWORD=$(generate_password)
-    
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Установка Hestia CP (это может занять несколько минут)..."
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Hostname: $SYSTEM_HOSTNAME"
-    echo -e "${LIGHT_CYAN}${ARROW}${NC} Пароль: $HESTIA_PASSWORD"
-    
-    # Запускаем установку с таймаутом
-    if timeout 1800 bash -c '
-        yes | bash hst-install.sh --lang "ru" --hostname "'$SYSTEM_HOSTNAME'" --username "TrafficHestia" --email "info@traffic.com" --password "'$HESTIA_PASSWORD'" --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force
-    '; then
-        echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Hestia CP установлен успешно"
-        safe_remove hst-install.sh
-        return 0
-    else
-        echo -e "${LIGHT_YELLOW}⚠️ Таймаут или ошибка установки Hestia CP, но продолжаем...${NC}"
-        safe_remove hst-install.sh
-        return 0
-    fi
+    return 0
 }
 
 # Функция проверки ошибок
@@ -386,10 +359,12 @@ install_packages_in_parts
 
 check_error "Установка базовых пакетов"
 
-# 3. Установка Composer (требуется для Hestia CP)
+# 3. Установка Composer (опционально, пропускаем для ускорения)
 print_header "📦 УСТАНОВКА COMPOSER"
-safe_install_composer
-check_error "Установка Composer"
+echo -e "${LIGHT_YELLOW}⚠️ Пропускаем установку Composer для ускорения процесса${NC}"
+echo -e "${LIGHT_CYAN}${ARROW}${NC} Создаем заглушку Composer..."
+create_composer_stub
+echo -e "${LIGHT_GREEN}${CHECK_MARK}${NC} Composer заглушка создана (можно установить позже вручную)"
 
 # 4. Установка Hestia CP
 print_header "🌐 УСТАНОВКА HESTIA CP"
@@ -1108,4 +1083,17 @@ echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Все сервисы установлены и настроены!${NC}"
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Рекомендуется перезагрузить сервер после установки"
 echo -e "${LIGHT_CYAN}${ARROW}${NC} Для мониторинга используйте Grafana: ${LIGHT_YELLOW}http://${SERVER_IP}:3000${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Для управления сервером используйте Hestia CP: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"
+
+echo -e "\n${LIGHT_PURPLE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОПОЛНИТЕЛЬНАЯ УСТАНОВКА${NC} ${LIGHT_PURPLE}${STAR}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🔧 РУЧНАЯ УСТАНОВКА${NC}${LIGHT_PURPLE}${LINE_V:0:40}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}📦 Composer:${NC}${LIGHT_PURPLE}${LINE_V:0:45}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}curl -sS https://getcomposer.org/installer | php${NC}${LIGHT_PURPLE}${LINE_V:0:8}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}mv composer.phar /usr/local/bin/composer${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${CYAN}🌐 Hestia CP:${NC}${LIGHT_PURPLE}${LINE_V:0:45}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${LINE_V}${NC} ${LIGHT_YELLOW}bash hst-install.sh --lang 'ru' --hostname \$(hostname) --username 'admin' --email 'admin@example.com' --password 'password' --apache no --named no --exim no --dovecot no --clamav no --spamassassin no --force${NC}${LIGHT_PURPLE}${LINE_V:0:2}${LINE_V}${NC}"
+echo -e "${LIGHT_PURPLE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
+
+echo -e "\n${LIGHT_CYAN}${ARROW}${NC} После установки Hestia CP используйте: ${LIGHT_YELLOW}http://${SERVER_IP}:8083${NC}"
