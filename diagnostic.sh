@@ -1,294 +1,272 @@
 #!/bin/bash
 
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-PURPLE='\033[0;35m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Подключаем модули
+source "$(dirname "$0")/core/colors.sh"
+source "$(dirname "$0")/core/utils.sh"
 
-# Символы
-CHECK_MARK="✓"
-CROSS_MARK="✗"
-ARROW="->"
+print_header "🔍 УНИВЕРСАЛЬНАЯ ДИАГНОСТИКА СИСТЕМЫ"
 
-echo -e "${BLUE}${BOLD}🔍 УНИВЕРСАЛЬНАЯ ДИАГНОСТИКА СИСТЕМЫ${NC}"
-echo -e "${BLUE}====================================${NC}"
-echo ""
-
-# Функция проверки root прав
-check_root() {
-    if [ "$(id -u)" != "0" ]; then
-        echo -e "${RED}${CROSS_MARK}${NC} Этот скрипт должен быть запущен от root"
-        exit 1
-    fi
-}
+# Проверяем root права
+check_root
 
 # Функция диагностики системы
 diagnose_system() {
-    echo -e "${PURPLE}${BOLD}🔧 ДИАГНОСТИКА СИСТЕМЫ${NC}"
-    echo -e "${PURPLE}====================${NC}"
+    print_header "🔧 ДИАГНОСТИКА СИСТЕМЫ"
     
     # Проверка блокировки APT
-    echo -e "${CYAN}${ARROW}${NC} Проверка блокировки APT..."
+    log_message "INFO" "Проверка блокировки APT..."
     if lsof /var/lib/dpkg/lock-frontend 2>/dev/null; then
-        echo -e "  ${RED}${CROSS_MARK}${NC} APT заблокирован"
-        echo -e "  ${CYAN}${ARROW}${NC} Процессы APT:"
-        ps aux | grep -E "(apt|dpkg)" | grep -v grep || echo "    Процессы не найдены"
+        log_message "ERROR" "APT заблокирован"
+        log_message "INFO" "Процессы APT:"
+        ps aux | grep -E "(apt|dpkg)" | grep -v grep || log_message "WARNING" "Процессы не найдены"
     else
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} APT не заблокирован"
+        log_message "SUCCESS" "APT не заблокирован"
     fi
     
     # Проверка места на диске
-    echo -e "${CYAN}${ARROW}${NC} Проверка места на диске..."
+    log_message "INFO" "Проверка места на диске..."
     FREE_SPACE=$(df / | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
     if [ "$FREE_SPACE" -lt 1000000 ] 2>/dev/null; then
-        echo -e "  ${RED}${CROSS_MARK}${NC} Мало места (менее 1GB)"
+        log_message "ERROR" "Мало места (менее 1GB)"
     else
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Достаточно места"
+        log_message "SUCCESS" "Достаточно места"
     fi
     df -h / | tail -1
     
     # Проверка памяти
-    echo -e "${CYAN}${ARROW}${NC} Проверка памяти..."
+    log_message "INFO" "Проверка памяти..."
     free -h | grep -E "Mem|Swap"
-    
-    echo ""
 }
 
 # Функция диагностики сервисов
 diagnose_services() {
-    echo -e "${PURPLE}${BOLD}🔧 ДИАГНОСТИКА СЕРВИСОВ${NC}"
-    echo -e "${PURPLE}======================${NC}"
+    print_header "🔧 ДИАГНОСТИКА СЕРВИСОВ"
     
     local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "nginx" "mariadb" "mysql")
     
     for service in "${services[@]}"; do
         if systemctl is-active --quiet "$service" 2>/dev/null; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} $service: АКТИВЕН"
+            log_message "SUCCESS" "$service: АКТИВЕН"
         else
-            echo -e "  ${RED}${CROSS_MARK}${NC} $service: НЕ АКТИВЕН"
+            log_message "ERROR" "$service: НЕ АКТИВЕН"
         fi
     done
-    
-    echo ""
 }
 
 # Функция диагностики портов
 diagnose_ports() {
-    echo -e "${PURPLE}${BOLD}🌐 ДИАГНОСТИКА ПОРТОВ${NC}"
-    echo -e "${PURPLE}==================${NC}"
+    print_header "🌐 ДИАГНОСТИКА ПОРТОВ"
     
     local ports=(80 443 8083 3000 9090 9100 3100 9080 9091 9191 3306 22)
     
     for port in "${ports[@]}"; do
         if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} Порт $port: ОТКРЫТ"
+            log_message "SUCCESS" "Порт $port: ОТКРЫТ"
         else
-            echo -e "  ${RED}${CROSS_MARK}${NC} Порт $port: ЗАКРЫТ"
+            log_message "ERROR" "Порт $port: ЗАКРЫТ"
         fi
     done
-    
-    echo ""
 }
 
 # Функция диагностики процессов
 diagnose_processes() {
-    echo -e "${PURPLE}${BOLD}🔄 ДИАГНОСТИКА ПРОЦЕССОВ${NC}"
-    echo -e "${PURPLE}======================${NC}"
+    print_header "🔄 ДИАГНОСТИКА ПРОЦЕССОВ"
     
-    local processes=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "nginx" "mariadb" "mysql")
+    local processes=("grafana" "prometheus" "node_exporter" "pushgateway" "loki" "promtail" "nginx" "mysql" "mariadb")
     
     for process in "${processes[@]}"; do
-        if pgrep -f "$process" >/dev/null; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} $process: РАБОТАЕТ"
+        if pgrep -x "$process" >/dev/null 2>&1; then
+            log_message "SUCCESS" "$process: ЗАПУЩЕН"
         else
-            echo -e "  ${RED}${CROSS_MARK}${NC} $process: НЕ РАБОТАЕТ"
+            log_message "ERROR" "$process: НЕ ЗАПУЩЕН"
         fi
     done
-    
-    echo ""
 }
 
 # Функция диагностики файлов
 diagnose_files() {
-    echo -e "${PURPLE}${BOLD}📁 ДИАГНОСТИКА ФАЙЛОВ${NC}"
-    echo -e "${PURPLE}==================${NC}"
+    print_header "📁 ДИАГНОСТИКА ФАЙЛОВ"
     
     local files=(
-        "/etc/prometheus/prometheus.yml"
-        "/etc/prometheus/web.yml"
-        "/etc/pushgateway/web.yml"
-        "/etc/loki/loki-config.yaml"
-        "/etc/loki/users.yaml"
-        "/etc/promtail/promtail-config.yaml"
         "/etc/grafana/grafana.ini"
-        "/etc/nftables.conf"
+        "/etc/prometheus/prometheus.yml"
+        "/etc/loki/loki-config.yaml"
+        "/etc/promtail/promtail-config.yaml"
+        "/etc/fail2ban/jail.local"
+        "/etc/nginx/nginx.conf"
+        "/etc/mysql/my.cnf"
     )
     
     for file in "${files[@]}"; do
         if [ -f "$file" ]; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} $file: НАЙДЕН"
+            log_message "SUCCESS" "$file: СУЩЕСТВУЕТ"
         else
-            echo -e "  ${RED}${CROSS_MARK}${NC} $file: НЕ НАЙДЕН"
+            log_message "ERROR" "$file: НЕ СУЩЕСТВУЕТ"
         fi
     done
-    
-    echo ""
-}
-
-# Функция диагностики директорий
-diagnose_directories() {
-    echo -e "${PURPLE}${BOLD}📂 ДИАГНОСТИКА ДИРЕКТОРИЙ${NC}"
-    echo -e "${PURPLE}========================${NC}"
-    
-    local dirs=(
-        "/var/lib/prometheus"
-        "/var/lib/loki"
-        "/etc/pushgateway"
-        "/etc/loki"
-        "/etc/promtail"
-        "/var/log/grafana"
-        "/var/log/prometheus"
-    )
-    
-    for dir in "${dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} $dir: НАЙДЕНА"
-        else
-            echo -e "  ${RED}${CROSS_MARK}${NC} $dir: НЕ НАЙДЕНА"
-        fi
-    done
-    
-    echo ""
 }
 
 # Функция диагностики логов
 diagnose_logs() {
-    echo -e "${PURPLE}${BOLD}📋 ДИАГНОСТИКА ЛОГОВ${NC}"
-    echo -e "${PURPLE}==================${NC}"
+    print_header "📋 ДИАГНОСТИКА ЛОГОВ"
     
-    local logs=(
+    local log_files=(
         "/var/log/grafana/grafana.log"
+        "/var/log/prometheus/"
+        "/var/log/loki/"
+        "/var/log/promtail/"
         "/var/log/fail2ban.log"
         "/var/log/nginx/error.log"
-        "/var/log/nginx/access.log"
+        "/var/log/mysql/error.log"
     )
     
-    for log in "${logs[@]}"; do
-        if [ -f "$log" ]; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} $log: НАЙДЕН"
+    for log_file in "${log_files[@]}"; do
+        if [ -f "$log_file" ] || [ -d "$log_file" ]; then
+            log_message "SUCCESS" "$log_file: СУЩЕСТВУЕТ"
         else
-            echo -e "  ${RED}${CROSS_MARK}${NC} $log: НЕ НАЙДЕН"
+            log_message "ERROR" "$log_file: НЕ СУЩЕСТВУЕТ"
         fi
     done
-    
-    echo ""
 }
 
-# Функция исправления проблем
-fix_issues() {
-    echo -e "${PURPLE}${BOLD}🔧 ИСПРАВЛЕНИЕ ПРОБЛЕМ${NC}"
-    echo -e "${PURPLE}====================${NC}"
+# Функция диагностики сети
+diagnose_network() {
+    print_header "🌐 ДИАГНОСТИКА СЕТИ"
     
-    # Очистка блокировок APT
-    echo -e "${CYAN}${ARROW}${NC} Очистка блокировок APT..."
-    pkill -f "apt" 2>/dev/null || true
-    pkill -f "dpkg" 2>/dev/null || true
-    rm -f /var/lib/apt/lists/lock 2>/dev/null || true
-    rm -f /var/cache/apt/archives/lock 2>/dev/null || true
-    rm -f /var/lib/dpkg/lock* 2>/dev/null || true
-    dpkg --configure -a 2>/dev/null || true
-    echo -e "  ${GREEN}${CHECK_MARK}${NC} Блокировки очищены"
+    # Проверка интернет-соединения
+    log_message "INFO" "Проверка интернет-соединения..."
+    if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log_message "SUCCESS" "Интернет-соединение: РАБОТАЕТ"
+    else
+        log_message "ERROR" "Интернет-соединение: НЕ РАБОТАЕТ"
+    fi
     
-    # Перезапуск проблемных сервисов
-    echo -e "${CYAN}${ARROW}${NC} Перезапуск сервисов..."
-    local services=("prometheus" "pushgateway" "loki")
-    for service in "${services[@]}"; do
-        if ! systemctl is-active --quiet "$service" 2>/dev/null; then
-            systemctl restart "$service" 2>/dev/null || true
-            echo -e "  ${CYAN}${ARROW}${NC} $service перезапущен"
+    # Проверка DNS
+    log_message "INFO" "Проверка DNS..."
+    if nslookup google.com >/dev/null 2>&1; then
+        log_message "SUCCESS" "DNS: РАБОТАЕТ"
+    else
+        log_message "ERROR" "DNS: НЕ РАБОТАЕТ"
+    fi
+    
+    # IP адрес
+    log_message "INFO" "IP адрес: $(get_server_ip)"
+}
+
+# Функция диагностики безопасности
+diagnose_security() {
+    print_header "🛡️ ДИАГНОСТИКА БЕЗОПАСНОСТИ"
+    
+    # Проверка Fail2Ban
+    if systemctl is-active --quiet fail2ban 2>/dev/null; then
+        log_message "SUCCESS" "Fail2Ban: АКТИВЕН"
+        # Показываем заблокированные IP
+        local banned_ips=$(fail2ban-client status sshd 2>/dev/null | grep "Total banned" | awk '{print $4}' || echo "0")
+        log_message "INFO" "Заблокированных IP: $banned_ips"
+    else
+        log_message "ERROR" "Fail2Ban: НЕ АКТИВЕН"
+    fi
+    
+    # Проверка файрвола
+    if command -v nft >/dev/null 2>&1; then
+        if systemctl is-active --quiet nftables 2>/dev/null; then
+            log_message "SUCCESS" "nftables: АКТИВЕН"
+        else
+            log_message "ERROR" "nftables: НЕ АКТИВЕН"
         fi
-    done
-    
-    echo ""
+    elif command -v iptables >/dev/null 2>&1; then
+        if iptables -L >/dev/null 2>&1; then
+            log_message "SUCCESS" "iptables: АКТИВЕН"
+        else
+            log_message "ERROR" "iptables: НЕ АКТИВЕН"
+        fi
+    else
+        log_message "ERROR" "Файрвол не найден"
+    fi
 }
 
-# Функция показа информации о системе
-show_system_info() {
-    echo -e "${PURPLE}${BOLD}💻 ИНФОРМАЦИЯ О СИСТЕМЕ${NC}"
-    echo -e "${PURPLE}======================${NC}"
+# Функция диагностики производительности
+diagnose_performance() {
+    print_header "⚡ ДИАГНОСТИКА ПРОИЗВОДИТЕЛЬНОСТИ"
     
-    echo -e "${CYAN}${ARROW}${NC} ОС: $(lsb_release -d | cut -f2 2>/dev/null || echo 'Неизвестно')"
-    echo -e "${CYAN}${ARROW}${NC} Ядро: $(uname -r)"
-    echo -e "${CYAN}${ARROW}${NC} Архитектура: $(uname -m)"
-    echo -e "${CYAN}${ARROW}${NC} Время работы: $(uptime -p 2>/dev/null || echo 'Неизвестно')"
-    echo -e "${CYAN}${ARROW}${NC} IP адрес: $(hostname -I | awk '{print $1}' 2>/dev/null || echo 'Неизвестно')"
+    # CPU
+    log_message "INFO" "CPU загрузка:"
+    top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1
     
-    echo ""
+    # Память
+    log_message "INFO" "Использование памяти:"
+    free -h | grep -E "Mem|Swap"
+    
+    # Диск
+    log_message "INFO" "Использование диска:"
+    df -h /
+    
+    # Температура (если доступно)
+    if command -v sensors >/dev/null 2>&1; then
+        log_message "INFO" "Температура CPU:"
+        sensors | grep -E "Core|temp" | head -3
+    fi
 }
 
-# Функция показа доступных интерфейсов
-show_interfaces() {
-    echo -e "${PURPLE}${BOLD}🌐 ДОСТУПНЫЕ ИНТЕРФЕЙСЫ${NC}"
-    echo -e "${PURPLE}========================${NC}"
+# Функция генерации отчета
+generate_report() {
+    print_header "📊 ГЕНЕРАЦИЯ ОТЧЕТА"
     
-    local ip=$(hostname -I | awk '{print $1}' 2>/dev/null || echo 'localhost')
+    local report_file="/tmp/tc_diagnostic_report_$(date +%Y%m%d_%H%M%S).txt"
     
+    {
+        echo "=== ОТЧЕТ ДИАГНОСТИКИ TC FAST SETUP ==="
+        echo "Дата: $(date)"
+        echo "Система: $(uname -a)"
+        echo "IP адрес: $(get_server_ip)"
+        echo ""
+        
+        echo "=== СИСТЕМА ==="
+        df -h /
+        free -h
+        echo ""
+        
+        echo "=== СЕРВИСЫ ==="
+        systemctl status grafana-server prometheus node_exporter pushgateway loki promtail fail2ban_exporter 2>/dev/null
+        echo ""
+        
+        echo "=== ПОРТЫ ==="
+        netstat -tlnp | grep -E ':(80|443|8083|3000|9090|9100|3100|9080|9091|9191)'
+        echo ""
+        
+        echo "=== ЛОГИ ==="
+        tail -20 /var/log/grafana/grafana.log 2>/dev/null || echo "Логи Grafana недоступны"
+        echo ""
+        tail -20 /var/log/prometheus/ 2>/dev/null || echo "Логи Prometheus недоступны"
+        
+    } > "$report_file"
     
-    echo -e "  ${CYAN}${ARROW}${NC} Grafana: http://$ip:3000"
-    echo -e "  ${CYAN}${ARROW}${NC} Prometheus: http://$ip:9090"
-    echo -e "  ${CYAN}${ARROW}${NC} Loki: http://$ip:3100"
-    echo -e "  ${CYAN}${ARROW}${NC} Pushgateway: http://$ip:9091"
-    
-    echo ""
+    log_message "SUCCESS" "Отчет сохранен: $report_file"
+    log_message "INFO" "Для просмотра: cat $report_file"
 }
 
-# Основная логика
+# Главная функция
 main() {
-    # Проверяем root права
-    check_root
+    log_message "INFO" "Начало диагностики системы..."
     
-    # Диагностика системы
+    # Выполняем все проверки
     diagnose_system
-    
-    # Диагностика сервисов
     diagnose_services
-    
-    # Диагностика портов
     diagnose_ports
-    
-    # Диагностика процессов
     diagnose_processes
-    
-    # Диагностика файлов
     diagnose_files
-    
-    # Диагностика директорий
-    diagnose_directories
-    
-    # Диагностика логов
     diagnose_logs
+    diagnose_network
+    diagnose_security
+    diagnose_performance
     
-    # Исправление проблем
-    fix_issues
+    # Генерируем отчет
+    generate_report
     
-    # Информация о системе
-    show_system_info
-    
-    # Доступные интерфейсы
-    show_interfaces
-    
-    echo -e "${GREEN}${BOLD}✅ ДИАГНОСТИКА ЗАВЕРШЕНА${NC}"
-    echo -e "${GREEN}========================${NC}"
-    echo ""
-    echo -e "${YELLOW}💡 Рекомендации:${NC}"
-    echo -e "  ${CYAN}${ARROW}${NC} Если сервисы не работают, проверьте логи: journalctl -u <service_name>"
-    echo -e "  ${CYAN}${ARROW}${NC} Если порты закрыты, запустите: ./firewall_fixed.sh"
+    print_header "🎉 ДИАГНОСТИКА ЗАВЕРШЕНА"
+    log_message "SUCCESS" "Диагностика завершена успешно!"
+    log_message "INFO" "Проверьте отчет выше для детальной информации"
 }
 
-# Запускаем основную функцию
-main
+# Запуск главной функции
+main "$@"

@@ -12,9 +12,10 @@ Thumbs.db
 logs/
 *.log
 
-# Конфигурационные файлы с паролями
-*.conf
-!example.conf
+# Конфигурационные файлы с паролями (исключаем только файлы с секретами)
+secrets.conf
+passwords.conf
+*.secret.conf
 
 # Временные директории
 tmp/
@@ -37,4 +38,3 @@ temp/
 
 # Git
 .git/
-.gitignore

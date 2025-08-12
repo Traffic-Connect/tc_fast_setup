@@ -1,72 +1,14 @@
 #!/bin/bash
 
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-PURPLE='\033[0;35m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Подключаем модули
+source "$(dirname "$0")/core/colors.sh"
+source "$(dirname "$0")/core/utils.sh"
 
-# Светлые цвета
-LIGHT_RED='\033[1;31m'
-LIGHT_GREEN='\033[1;32m'
-LIGHT_YELLOW='\033[1;33m'
-LIGHT_BLUE='\033[1;34m'
-LIGHT_CYAN='\033[1;36m'
-LIGHT_PURPLE='\033[1;35m'
-
-# Символы
-CHECK_MARK="✓"
-CROSS_MARK="✗"
-ARROW="->"
-STAR="⭐"
-CORNER_TL="╭"
-CORNER_TR="╮"
-CORNER_BL="╰"
-CORNER_BR="╯"
-LINE_H="─"
-LINE_V="│"
-LINE_L="├"
-LINE_R="┤"
-
+# Красивый заголовок скрипта
 echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🌐 HESTIA CP - УСТАНОВКА ПАНЕЛИ УПРАВЛЕНИЯ${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${LIGHT_CYAN}Автоматическая установка Hestia Control Panel${NC}${LIGHT_BLUE}${LINE_V:0:20}${LINE_V}${NC}"
 echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
-
-# Функция проверки root прав
-check_root() {
-    if [ "$(id -u)" != "0" ]; then
-        echo -e "${RED}${CROSS_MARK}${NC} Этот скрипт должен быть запущен от root"
-        exit 1
-    fi
-}
-
-# Функция генерации пароля
-generate_password() {
-    openssl rand -base64 32 | tr -d "=+/" | cut -c1-16
-}
-
-# Функция для красивого заголовка
-print_header() {
-    local title="$1"
-    local width=60
-    local padding=$(( (width - ${#title} - 2) / 2 ))
-    echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:padding} ${BOLD}${title}${NC} ${LINE_H:0:padding}${CORNER_TR}${NC}"
-}
-
-# Функция проверки ошибок
-check_error() {
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}${CROSS_MARK} [ОШИБКА] $1${NC}"
-        exit 1
-    else
-        echo -e "${GREEN}${CHECK_MARK} [OK] $1${NC}"
-    fi
-}
 
 # Проверяем root права
 check_root
@@ -77,14 +19,14 @@ HESTIA_PASSWORD=$(generate_password)
 HESTIA_EMAIL="admin@$(hostname)"
 
 # Получаем IP адрес сервера
-SERVER_IP=$(hostname -I | awk '{print $1}')
+SERVER_IP=$(get_server_ip)
 
 print_header "🔧 ПОДГОТОВКА К УСТАНОВКЕ"
 
-echo -e "${CYAN}${ARROW}${NC} Проверка системы..."
-echo -e "${CYAN}${ARROW}${NC} ОС: $(lsb_release -d | cut -f2 2>/dev/null || echo 'Ubuntu')"
-echo -e "${CYAN}${ARROW}${NC} Ядро: $(uname -r)"
-echo -e "${CYAN}${ARROW}${NC} IP адрес: ${SERVER_IP}"
+log_message "INFO" "Проверка системы..."
+log_message "INFO" "ОС: $(lsb_release -d | cut -f2 2>/dev/null || echo 'Ubuntu')"
+log_message "INFO" "Ядро: $(uname -r)"
+log_message "INFO" "IP адрес: ${SERVER_IP}"
 
 # Показываем данные для входа ДО установки
 print_header "🔐 ДАННЫЕ ДЛЯ ВХОДА"
@@ -136,17 +78,17 @@ read -n 1 -s
 
 print_header "📦 УСТАНОВКА HESTIA CP"
 
-echo -e "${CYAN}${ARROW}${NC} Загрузка установщика Hestia CP..."
+log_message "INFO" "Загрузка установщика Hestia CP..."
 if wget -q https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh -O /tmp/hst-install.sh; then
-    echo -e "${GREEN}${CHECK_MARK}${NC} Установщик загружен"
+    log_message "SUCCESS" "Установщик загружен"
     chmod +x /tmp/hst-install.sh
 else
-    echo -e "${RED}${CROSS_MARK}${NC} Ошибка загрузки установщика"
+    log_message "ERROR" "Ошибка загрузки установщика"
     exit 1
 fi
 
-echo -e "${CYAN}${ARROW}${NC} Запуск установки Hestia CP..."
-echo -e "${YELLOW}⚠️ Установка может занять 5-10 минут${NC}"
+log_message "INFO" "Запуск установки Hestia CP..."
+log_message "WARNING" "Установка может занять 5-10 минут"
 
 # Запускаем установку Hestia CP
 /tmp/hst-install.sh \
@@ -170,9 +112,9 @@ rm -f /tmp/hst-install.sh
 
 print_header "🎉 УСТАНОВКА ЗАВЕРШЕНА"
 
-echo -e "\n${LIGHT_GREEN}${CHECK_MARK}${NC} ${BOLD}Hestia CP успешно установлен!${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Для входа используйте: ${LIGHT_YELLOW}https://${SERVER_IP}:8083${NC}"
-echo -e "${LIGHT_CYAN}${ARROW}${NC} Логин: ${LIGHT_YELLOW}${HESTIA_USERNAME}${NC} | Пароль: ${LIGHT_RED}${HESTIA_PASSWORD}${NC}"
+log_message "SUCCESS" "Hestia CP успешно установлен!"
+log_message "INFO" "Для входа используйте: https://${SERVER_IP}:8083"
+log_message "INFO" "Логин: ${HESTIA_USERNAME} | Пароль: ${HESTIA_PASSWORD}"
 
 echo -e "\n${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
 echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_GREEN}🎉 УСТАНОВКА HESTIA CP ЗАВЕРШЕНА УСПЕШНО! 🎉${NC} ${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"

@@ -301,6 +301,7 @@ install_packages_in_parts
 check_error "Установка базовых пакетов"
 
 # 3. Firewall configuration (improved version)
+
 print_header "🔥 НАСТРОЙКА ФАЙРВОЛА"
 echo "=== ОТЛАДКА: Начинаем настройку файрвола ==="
 

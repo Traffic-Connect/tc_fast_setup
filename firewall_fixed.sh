@@ -1,69 +1,37 @@
 #!/bin/bash
 
-# Цвета для вывода
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-PURPLE='\033[0;35m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Подключаем модули
+source "$(dirname "$0")/core/colors.sh"
+source "$(dirname "$0")/core/utils.sh"
 
-# Символы
-CHECK_MARK="✓"
-CROSS_MARK="✗"
-ARROW="->"
+print_header "🔥 ИСПРАВЛЕННАЯ НАСТРОЙКА ФАЙРВОЛА"
 
-echo -e "${BLUE}${BOLD}🔥 ИСПРАВЛЕННАЯ НАСТРОЙКА ФАЙРВОЛА${NC}"
-echo -e "${BLUE}====================================${NC}"
-echo ""
+# Проверяем root права
+check_root
 
-# Функция проверки root прав
-check_root() {
-    if [ "$(id -u)" != "0" ]; then
-        echo -e "${RED}${CROSS_MARK}${NC} Этот скрипт должен быть запущен от root"
-        exit 1
-    fi
-}
 
-# Функция проверки валидности IP адреса
-is_valid_ip() {
-    local ip="$1"
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        IFS='.' read -r -a octets <<< "$ip"
-        for octet in "${octets[@]}"; do
-            if [ "$octet" -lt 0 ] || [ "$octet" -gt 255 ]; then
-                return 1
-            fi
-        done
-        return 0
-    fi
-    return 1
-}
 
 # Функция определения типа файрвола
 detect_firewall() {
-    echo -e "${CYAN}${ARROW}${NC} Определение типа файрвола..."
+    log_message "INFO" "Определение типа файрвола..."
     
     if command -v nft >/dev/null 2>&1 && nft list ruleset >/dev/null 2>&1; then
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Используется nftables (современный файрвол)"
+        log_message "SUCCESS" "Используется nftables (современный файрвол)"
         echo "nftables"
         return 0
     elif command -v iptables >/dev/null 2>&1; then
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Используется iptables (классический файрвол)"
+        log_message "SUCCESS" "Используется iptables (классический файрвол)"
         echo "iptables"
         return 0
     else
-        echo -e "  ${RED}${CROSS_MARK}${NC} Файрвол не найден"
+        log_message "ERROR" "Файрвол не найден"
         return 1
     fi
 }
 
 # Функция настройки nftables
 setup_nftables() {
-    echo -e "${PURPLE}${BOLD}🔧 НАСТРОЙКА NFTABLES${NC}"
-    echo -e "${PURPLE}====================${NC}"
+    print_header "🔧 НАСТРОЙКА NFTABLES"
     
     # Создаем конфигурацию nftables
     cat > /etc/nftables.conf <<'EOF'
@@ -94,7 +62,8 @@ table inet filter {
         # HTTP/HTTPS
         tcp dport { 80, 443 } accept
         
-        
+        # Hestia CP
+        tcp dport 8083 accept
         
         # Сервисы мониторинга
         tcp dport { 9090, 9100, 3100, 9080, 9191, 9091, 3000 } accept
@@ -103,8 +72,8 @@ table inet filter {
         udp dport 53 accept
         tcp dport 53 accept
         
-        # Логирование подозрительной активности
-        log prefix "nftables-dropped: " group 0
+        # Drop все остальное
+        drop
     }
     
     chain forward {
@@ -115,230 +84,142 @@ table inet filter {
         type filter hook output priority 0; policy accept;
     }
 }
-
-# Защита от DDoS
-table inet ddos {
-    chain input {
-        type filter hook input priority 10; policy accept;
-        
-        # Защита от SYN flood
-        tcp flags syn ct state new limit rate 10/second burst 25 packets accept
-        tcp flags syn ct state new drop
-        
-        # Защита от сканирования портов
-        tcp flags & (fin|syn|rst|ack) == rst ct state new limit rate 1/second accept
-        tcp flags & (fin|syn|rst|ack) == rst ct state new drop
-    }
-}
 EOF
-    
-    # Применяем правила nftables
-    echo -e "${CYAN}${ARROW}${NC} Применение правил nftables..."
-    if nft -f /etc/nftables.conf; then
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Правила nftables применены"
-    else
-        echo -e "  ${RED}${CROSS_MARK}${NC} Ошибка применения правил nftables"
-        return 1
-    fi
+
+    # Применяем конфигурацию
+    nft -f /etc/nftables.conf
     
     # Включаем и запускаем nftables
-    systemctl enable nftables 2>/dev/null || true
-    systemctl start nftables 2>/dev/null || true
+    systemctl enable nftables
+    systemctl start nftables
     
-    # Добавляем правила Cloudflare
-    add_cloudflare_rules "nftables"
-    
-    # Сохраняем правила
-    nft list ruleset > /etc/nftables.conf 2>/dev/null || true
-    
-    echo -e "  ${GREEN}${CHECK_MARK}${NC} nftables настроен успешно"
+    log_message "SUCCESS" "nftables настроен и запущен"
 }
 
 # Функция настройки iptables
 setup_iptables() {
-    echo -e "${PURPLE}${BOLD}🔧 НАСТРОЙКА IPTABLES${NC}"
-    echo -e "${PURPLE}====================${NC}"
+    print_header "🔧 НАСТРОЙКА IPTABLES"
     
     # Очищаем все правила
-    echo -e "${CYAN}${ARROW}${NC} Очистка существующих правил..."
-    iptables -F 2>/dev/null || true
-    iptables -X 2>/dev/null || true
+    iptables -F
+    iptables -X
+    iptables -t nat -F
+    iptables -t nat -X
+    iptables -t mangle -F
+    iptables -t mangle -X
     
     # Устанавливаем политики по умолчанию
     iptables -P INPUT DROP
     iptables -P FORWARD DROP
     iptables -P OUTPUT ACCEPT
     
-    # Базовые правила
-    echo -e "${CYAN}${ARROW}${NC} Добавление базовых правил..."
+    # Локальный интерфейс
     iptables -A INPUT -i lo -j ACCEPT
+    
+    # Установленные соединения
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     
-    # SSH с защитой от брутфорса
-    iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m limit --limit 5/minute --limit-burst 10 -j ACCEPT
+    # ICMP (ограниченно)
+    iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+    iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+    
+    # SSH (с защитой от брутфорса)
+    iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -m limit --limit 5/min -j ACCEPT
     
     # HTTP/HTTPS
     iptables -A INPUT -p tcp --dport 80 -j ACCEPT
     iptables -A INPUT -p tcp --dport 443 -j ACCEPT
     
-    
+    # Hestia CP
+    iptables -A INPUT -p tcp --dport 8083 -j ACCEPT
     
     # Сервисы мониторинга
-    echo -e "${CYAN}${ARROW}${NC} Открытие портов мониторинга..."
     for port in 9090 9100 3100 9080 9191 9091 3000; do
         iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Порт $port открыт"
     done
     
     # DNS
     iptables -A INPUT -p udp --dport 53 -j ACCEPT
     iptables -A INPUT -p tcp --dport 53 -j ACCEPT
     
-    # Добавляем правила Cloudflare
-    add_cloudflare_rules "iptables"
-    
-    # Защита от атак
-    echo -e "${CYAN}${ARROW}${NC} Настройка защиты от атак..."
-    
-    # SYN flood protection
-    iptables -N SYN_FLOOD 2>/dev/null || true
-    iptables -A INPUT -p tcp --syn -j SYN_FLOOD
-    iptables -A SYN_FLOOD -m limit --limit 10/s --limit-burst 25 -j RETURN
-    iptables -A SYN_FLOOD -j DROP
-    
-    # ICMP с ограничениями
-    iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
-    iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
-    
-    # Защита от сканирования портов
-    iptables -N PORT_SCAN 2>/dev/null || true
-    iptables -A INPUT -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j PORT_SCAN
-    iptables -A PORT_SCAN -m limit --limit 1/s -j RETURN
-    iptables -A PORT_SCAN -j DROP
-    
-    # Логирование подозрительной активности
-    iptables -A INPUT -j LOG --log-prefix "iptables-dropped: " --log-level 4
-    
     # Сохраняем правила
-    echo -e "${CYAN}${ARROW}${NC} Сохранение правил..."
     if command -v netfilter-persistent >/dev/null 2>&1; then
-        netfilter-persistent save 2>/dev/null || true
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Правила сохранены"
-    else
-        echo -e "  ${YELLOW}⚠️ netfilter-persistent не найден, правила не сохранены${NC}"
+        netfilter-persistent save
+    elif command -v iptables-save >/dev/null 2>&1; then
+        iptables-save > /etc/iptables/rules.v4
     fi
     
-    echo -e "  ${GREEN}${CHECK_MARK}${NC} iptables настроен успешно"
+    log_message "SUCCESS" "iptables настроен"
 }
 
-# Функция добавления правил Cloudflare
-add_cloudflare_rules() {
-    local firewall_type="$1"
+# Функция проверки настроек файрвола
+check_firewall() {
+    print_header "🔍 ПРОВЕРКА НАСТРОЕК ФАЙРВОЛА"
     
-    echo -e "${CYAN}${ARROW}${NC} Добавление правил Cloudflare..."
+    local firewall_type=$(detect_firewall)
     
-    # Получаем IP адреса Cloudflare
-    CLOUDFLARE_IPS=$(curl -s --max-time 10 https://www.cloudflare.com/ips-v4 2>/dev/null)
+    if [ "$firewall_type" = "nftables" ]; then
+        log_message "INFO" "Проверка правил nftables..."
+        nft list ruleset | head -20
+    elif [ "$firewall_type" = "iptables" ]; then
+        log_message "INFO" "Проверка правил iptables..."
+        iptables -L -n | head -20
+    fi
     
-    if [ $? -eq 0 ] && [ -n "$CLOUDFLARE_IPS" ]; then
-        local count=0
-        for ip in $CLOUDFLARE_IPS; do
-            if is_valid_ip "$ip"; then
-                if [ "$firewall_type" = "nftables" ]; then
-                    nft add rule inet filter input tcp saddr "$ip" dport { 80, 443 } accept 2>/dev/null && count=$((count + 1))
-                else
-                    iptables -A INPUT -p tcp -s "$ip" --dport 80 -j ACCEPT 2>/dev/null && count=$((count + 1))
-                    iptables -A INPUT -p tcp -s "$ip" --dport 443 -j ACCEPT 2>/dev/null && count=$((count + 1))
-                fi
-            fi
-        done
-        echo -e "  ${GREEN}${CHECK_MARK}${NC} Добавлено $count IP адресов Cloudflare"
+    # Проверяем статус сервиса
+    if systemctl is-active --quiet nftables 2>/dev/null; then
+        log_message "SUCCESS" "nftables сервис активен"
+    elif systemctl is-active --quiet iptables 2>/dev/null; then
+        log_message "SUCCESS" "iptables сервис активен"
     else
-        echo -e "  ${YELLOW}⚠️ Не удалось загрузить IP адреса Cloudflare${NC}"
+        log_message "WARNING" "Сервис файрвола не активен"
     fi
 }
 
-# Функция перезапуска сервисов
-restart_services() {
-    echo -e "${PURPLE}${BOLD}🔄 ПЕРЕЗАПУСК СЕРВИСОВ${NC}"
-    echo -e "${PURPLE}======================${NC}"
+# Функция показа доступных портов
+show_ports() {
+    print_header "🌐 ДОСТУПНЫЕ ПОРТЫ"
     
-    local services=("grafana-server" "prometheus" "pushgateway" "loki" "promtail" "fail2ban_exporter" "nginx" "mariadb" "mysql")
+    local ip=$(get_server_ip)
     
-    for service in "${services[@]}"; do
-        if systemctl is-active --quiet "$service" 2>/dev/null; then
-            echo -e "${CYAN}${ARROW}${NC} Перезапуск $service..."
-            if systemctl restart "$service" 2>/dev/null; then
-                echo -e "  ${GREEN}${CHECK_MARK}${NC} $service перезапущен"
-            else
-                echo -e "  ${YELLOW}⚠️ Ошибка перезапуска $service${NC}"
-            fi
-        fi
-    done
+    echo -e "${LIGHT_BLUE}${STAR}${NC} ${BOLD}${LIGHT_GREEN}ДОСТУПНЫЕ СЕРВИСЫ${NC} ${LIGHT_BLUE}${STAR}${NC}"
+    echo -e "${LIGHT_BLUE}${CORNER_TL}${LINE_H:0:58}${CORNER_TR}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${BOLD}${LIGHT_CYAN}🌐 ВЕБ-ИНТЕРФЕЙСЫ${NC}${LIGHT_BLUE}${LINE_V:0:42}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_L}${LINE_H:0:58}${LINE_R}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Hestia CP:${NC}      ${LIGHT_YELLOW}https://${ip}:8083${NC}${LIGHT_BLUE}${LINE_V:0:8}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Grafana:${NC}        ${LIGHT_YELLOW}http://${ip}:3000${NC}${LIGHT_BLUE}${LINE_V:0:10}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Prometheus:${NC}     ${LIGHT_YELLOW}http://${ip}:9090${NC}${LIGHT_BLUE}${LINE_V:0:6}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Loki:${NC}           ${LIGHT_YELLOW}http://${ip}:3100${NC}${LIGHT_BLUE}${LINE_V:0:12}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${LINE_V}${NC} ${CYAN}Pushgateway:${NC}    ${LIGHT_YELLOW}http://${ip}:9091${NC}${LIGHT_BLUE}${LINE_V:0:4}${LINE_V}${NC}"
+    echo -e "${LIGHT_BLUE}${CORNER_BL}${LINE_H:0:58}${CORNER_BR}${NC}"
 }
 
-# Функция проверки портов
-check_ports() {
-    echo -e "${PURPLE}${BOLD}🌐 ПРОВЕРКА ОТКРЫТЫХ ПОРТОВ${NC}"
-    echo -e "${PURPLE}========================${NC}"
-    
-    echo -e "${CYAN}${ARROW}${NC} Ожидание запуска сервисов..."
-    sleep 5
-    
-    local ports=(80 443 3000 9090 9100 3100 9080 9091 9191 3306 22)
-    
-    for port in "${ports[@]}"; do
-        if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
-            echo -e "  ${GREEN}${CHECK_MARK}${NC} Порт $port: ОТКРЫТ"
-        else
-            echo -e "  ${RED}${CROSS_MARK}${NC} Порт $port: ЗАКРЫТ"
-        fi
-    done
-}
-
-# Основная логика
+# Главная функция
 main() {
-    # Проверяем root права
-    check_root
+    log_message "INFO" "Начало настройки файрвола..."
     
     # Определяем тип файрвола
-    FIREWALL_TYPE=$(detect_firewall)
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}${CROSS_MARK}${NC} Не удалось определить тип файрвола"
+    local firewall_type=$(detect_firewall)
+    
+    if [ "$firewall_type" = "nftables" ]; then
+        setup_nftables
+    elif [ "$firewall_type" = "iptables" ]; then
+        setup_iptables
+    else
+        log_message "ERROR" "Не удалось определить тип файрвола"
         exit 1
     fi
     
-    echo ""
+    # Проверяем настройки
+    check_firewall
     
-    # Настраиваем файрвол
-    if [ "$FIREWALL_TYPE" = "nftables" ]; then
-        setup_nftables
-    else
-        setup_iptables
-    fi
+    # Показываем доступные порты
+    show_ports
     
-    echo ""
-    
-    # Перезапускаем сервисы
-    restart_services
-    
-    echo ""
-    
-    # Проверяем порты
-    check_ports
-    
-    echo ""
-    
-    echo -e "${GREEN}${BOLD}✅ ФАЙРВОЛ НАСТРОЕН УСПЕШНО${NC}"
-    echo -e "${GREEN}==============================${NC}"
-    echo ""
-    echo -e "${YELLOW}💡 Доступные веб-интерфейсы:${NC}"
-    
-    echo -e "  ${CYAN}${ARROW}${NC} Grafana: http://$(hostname -I | awk '{print $1}'):3000"
-    echo -e "  ${CYAN}${ARROW}${NC} Prometheus: http://$(hostname -I | awk '{print $1}'):9090"
-    echo -e "  ${CYAN}${ARROW}${NC} Loki: http://$(hostname -I | awk '{print $1}'):3100"
-    echo -e "  ${CYAN}${ARROW}${NC} Pushgateway: http://$(hostname -I | awk '{print $1}'):9091"
+    print_header "🎉 НАСТРОЙКА ФАЙРВОЛА ЗАВЕРШЕНА"
+    log_message "SUCCESS" "Файрвол настроен успешно!"
+    log_message "INFO" "Все необходимые порты открыты"
 }
 
-# Запускаем основную функцию
-main
+# Запуск главной функции
+main "$@"

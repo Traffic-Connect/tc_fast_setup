@@ -5,11 +5,11 @@
 ## 📋 Что устанавливается
 
 ### 🌐 Веб-интерфейсы
-
 - **Grafana** - дашборды мониторинга (порт 3000)
 - **Prometheus** - сбор метрик (порт 9090)
 - **Loki** - агрегация логов (порт 3100)
 - **Pushgateway** - прием метрик (порт 9091)
+- **Hestia CP** - панель управления сервером (порт 8083)
 
 ### 🛡️ Безопасность
 - **Fail2ban** - защита от брутфорса
@@ -32,30 +32,19 @@ ssh root@your-server-ip
 apt update && apt upgrade -y
 ```
 
-### 2. Установка
+### 2. Установка полного стека
 ```bash
 # Скачайте скрипт
-wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/script.sh
+wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/main.sh
 
 # Сделайте исполняемым
-chmod +x script.sh
+chmod +x main.sh
 
 # Запустите установку
-./script.sh
+./main.sh
 ```
 
-### 3. Проверка установки
-```bash
-# Запустите диагностику
-wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/diagnostic.sh
-chmod +x diagnostic.sh
-./diagnostic.sh
-```
-
-## 🌐 Установка Hestia CP (отдельно)
-
-Если вам нужна панель управления сервером Hestia CP:
-
+### 3. Установка только Hestia CP
 ```bash
 # Скачиваем скрипт установки Hestia CP
 wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/install_hestia.sh
@@ -67,32 +56,66 @@ chmod +x install_hestia.sh
 sudo bash install_hestia.sh
 ```
 
-**После установки Hestia CP:**
-- URL: `https://IP:8083`
-- Логин: `admin`
-- Пароль: генерируется автоматически и показывается в конце установки
+### 4. Интерактивный менеджер модулей
+```bash
+# Скачайте менеджер модулей
+wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/scripts/module_manager.sh
+
+# Сделайте исполняемым
+chmod +x scripts/module_manager.sh
+
+# Запустите менеджер
+./scripts/module_manager.sh
+```
+
+## 🌐 Доступ к сервисам
+
+После установки будут доступны следующие интерфейсы:
+
+| Сервис | URL | Логин | Пароль |
+|--------|-----|-------|--------|
+| Grafana | http://IP:3000 | admin | admin |
+| Prometheus | http://IP:9090 | - | - |
+| Loki | http://IP:3100 | - | - |
+| Pushgateway | http://IP:9091 | - | - |
+| Hestia CP | https://IP:8083 | admin | генерируется автоматически |
 
 ## 📁 Структура проекта
 
-### Основные файлы
-- **`script.sh`** - главный скрипт установки системы мониторинга
-- **`install_hestia.sh`** - отдельный скрипт установки Hestia CP
-- **`diagnostic.sh`** - универсальная диагностика системы
-- **`firewall_fixed.sh`** - исправленная настройка файрвола
-
-- **`README.md`** - документация проекта
-
-### Удаленные файлы (объединены в diagnostic.sh)
-- ~~`check_services.sh`~~ - функциональность перенесена в diagnostic.sh
-- ~~`diagnose_services.sh`~~ - функциональность перенесена в diagnostic.sh
-- ~~`debug_services.sh`~~ - функциональность перенесена в diagnostic.sh
-- ~~`fix_configs.sh`~~ - функциональность перенесена в fix_auth.sh
-- ~~`fix_remaining.sh`~~ - функциональность перенесена в fix_auth.sh
-- ~~`fix_firewall.sh`~~ - заменен на firewall_fixed.sh
-- ~~`fw.sh`~~ - функциональность перенесена в firewall_fixed.sh
-- ~~`2.sh`~~ - устаревший файл
-- ~~`unified_diagnostic.sh`~~ - заменен на diagnostic.sh
-- ~~`script_debug.sh`~~ - устаревший файл
+```
+tc-fast-setup-main/
+├── main.sh                 # 🚀 Главный скрипт установки
+├── install_hestia.sh       # 🎛️ Установка Hestia CP
+├── diagnostic.sh          # 🔍 Диагностика системы
+├── firewall_fixed.sh      # 🔥 Настройка файрвола
+├── script_old.sh          # 📜 Архив старого кода
+│
+├── core/                  # 🔧 Основные модули
+│   ├── colors.sh         # 🎨 Цвета и символы
+│   ├── utils.sh          # 🛠️ Утилиты
+│   ├── system.sh         # 💻 Системные операции
+│   ├── installer.sh      # 🚀 Главный установщик
+│   └── config.sh         # ⚙️ Конфигурация
+│
+├── modules/              # 📦 Модули сервисов
+│   ├── grafana.sh        # 📊 Grafana
+│   ├── prometheus.sh     # 📈 Prometheus
+│   ├── node_exporter.sh  # 🖥️ Node Exporter
+│   ├── pushgateway.sh    # 📤 Pushgateway
+│   ├── loki.sh           # 📝 Loki и Promtail
+│   ├── fail2ban.sh       # 🛡️ Fail2Ban
+│   ├── fail2ban_exporter.sh # 📊 Fail2Ban Exporter
+│   └── firewall.sh       # 🔥 Firewall
+│
+├── output/               # 📺 Отображение результатов
+│   └── display.sh        # 🎨 Функции отображения
+│
+├── config/               # ⚙️ Конфигурация
+│   └── settings.conf     # 📋 Основные настройки
+│
+└── scripts/              # 🔧 Дополнительные скрипты
+    └── module_manager.sh # 🎛️ Интерактивный менеджер
+```
 
 ## 🔧 Устранение проблем
 
@@ -112,24 +135,14 @@ dpkg --configure -a
 ### Если порты закрыты
 ```bash
 # Настройте файрвол
-wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/firewall_fixed.sh
-chmod +x firewall_fixed.sh
 ./firewall_fixed.sh
 ```
 
-
-
-## 🌐 Доступ к сервисам
-
-После установки будут доступны следующие интерфейсы:
-
-| Сервис | URL | Логин | Пароль |
-|--------|-----|-------|--------|
-
-| Grafana | http://IP:3000 | TrafficGrafana | JRPhqZbDgAZAoFPh |
-| Prometheus | http://IP:9090 | - |
-| Loki | http://IP:3100 | - |
-| Pushgateway | http://IP:9091 | - |
+### Диагностика системы
+```bash
+# Запустите полную диагностику
+./diagnostic.sh
+```
 
 ## 📊 Мониторинг
 
@@ -176,9 +189,9 @@ apt update && apt upgrade -y
 ### Обновление скриптов
 ```bash
 # Скачайте последние версии
-wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/script.sh
+wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/main.sh
 wget https://raw.githubusercontent.com/Traffic-Connect/tc_fast_setup/main/diagnostic.sh
-chmod +x script.sh diagnostic.sh
+chmod +x main.sh diagnostic.sh
 ```
 
 ## 📝 Логи
@@ -222,7 +235,7 @@ netstat -tlnp | grep -E ":(3000|9090|3100)"
 ### Частые проблемы
 1. **Сервисы не запускаются** - проверьте логи: `journalctl -u <service>`
 2. **Порты закрыты** - запустите: `./firewall_fixed.sh`
-3. **Проблемы с аутентификацией** - запустите: `./fix_auth.sh`
+3. **Проблемы с аутентификацией** - проверьте конфигурацию
 4. **Мало места** - очистите логи: `journalctl --vacuum-time=7d`
 
 ## 📈 Производительность
@@ -240,16 +253,17 @@ netstat -tlnp | grep -E ":(3000|9090|3100)"
 - Настройте мониторинг ресурсов
 
 ## 🎯 Цели проекта
-
 - ✅ Быстрая установка системы мониторинга
 - ✅ Автоматическая настройка безопасности
 - ✅ Простота использования
 - ✅ Полная диагностика системы
 - ✅ Легкое устранение проблем
+- ✅ Модульная архитектура
+- ✅ Интерактивный менеджер
 
 ## 📄 Лицензия
 
-Этот проект распространяется под лицензией MIT. См. файл LICENSE для подробностей.
+Этот проект распространяется под лицензией MIT.
 
 ---
 
